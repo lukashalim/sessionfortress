@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Session Fortress</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body class="popup">
+    <div class="wrap stack">
+      <div class="spread">
+        <div class="brand" id="brand"></div>
+        <div id="status" class="pill"><span class="dot"></span><span>Checking</span></div>
+      </div>
+      <div id="banner" class="banner warn hidden"></div>
+      <button class="btn btn-primary btn-block" id="save-window" type="button">Save this window</button>
+      <button class="btn btn-block" id="save-all" type="button">Save all windows</button>
+      <button class="btn btn-block" id="stash" type="button">Save &amp; close (stash)</button>
+      <button class="btn btn-ghost btn-block" id="open-manager" type="button">Open manager</button>
+    </div>
+    <script type="module" src="./popup.ts"></script>
+  </body>
+</html>

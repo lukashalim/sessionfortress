@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Session Fortress settings</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="options">
+      <div class="brand" id="brand"></div>
+      <p class="sub">Local-first session backup. The folder you pick is the copy that survives a Chrome profile wipe.</p>
+
+      <h2>Backup folder</h2>
+      <div id="folder-status" class="banner warn"></div>
+      <div class="row" style="margin: 12px 0 20px">
+        <button class="btn btn-primary" id="pick-folder" type="button">Choose backup folder</button>
+        <button class="btn" id="reallow" type="button">Re-allow access</button>
+        <button class="btn" id="clear-folder" type="button">Stop using folder</button>
+      </div>
+
+      <h2>Retention</h2>
+      <div class="field">
+        <label for="retention">Keep last N dated mirror files (5–50). latest.json is never pruned.</label>
+        <input class="input" id="retention" type="number" min="5" max="50" />
+      </div>
+
+      <h2>Startup</h2>
+      <div class="field">
+        <label class="row">
+          <input id="health" type="checkbox" />
+          <span>Run a health check when Chrome starts</span>
+        </label>
+        <label class="row">
+          <input id="incognito" type="checkbox" />
+          <span>Include incognito URLs in the folder mirror (off by default)</span>
+        </label>
+      </div>
+
+      <h2>Keyboard shortcuts</h2>
+      <p class="sub">Rebind them in Chrome. These are the suggested defaults.</p>
+      <ul>
+        <li>Save this window — <span class="kbd">Alt+Shift+S</span></li>
+        <li>Save all windows — (no default; set one if you want it)</li>
+        <li>Save &amp; close — (no default)</li>
+        <li>Open manager — <span class="kbd">Alt+Shift+M</span></li>
+      </ul>
+      <p><a id="shortcuts" href="#">Open chrome://extensions/shortcuts</a></p>
+
+      <h2>Permissions</h2>
+      <ul>
+        <li>Tabs &amp; Tab Groups — to read and restore sessions</li>
+        <li>Storage — to keep the session list</li>
+        <li>Folder access — only the backup folder you choose, and only after you pick it</li>
+        <li>We don’t read page content. We don’t sell data. Local-first.</li>
+      </ul>
+
+      <h2>Privacy</h2>
+      <ul>
+        <li>Local-first; sessions stay on this device</li>
+        <li>Backup folder only with a user gesture</li>
+        <li>No URL analytics and no network requests</li>
+        <li>Export and delete are local</li>
+        <li>Contact: <span id="support"></span></li>
+      </ul>
+
+      <div class="row">
+        <button class="btn" id="reset" type="button">Restore defaults</button>
+        <button class="btn" id="open-manager" type="button">Open manager</button>
+      </div>
+      <p class="pro-note">Pro — later. No paywall in this version.</p>
+    </div>
+    <script type="module" src="./options.ts"></script>
+  </body>
+</html>
