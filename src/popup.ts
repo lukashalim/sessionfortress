@@ -14,7 +14,8 @@ function paint(bootstrap: Bootstrap): void {
   if (bootstrap.folderStatus === "permission-expired") {
     banner.className = "banner bad";
     banner.classList.remove("hidden");
-    banner.textContent = "Click to re-allow folder access in the manager.";
+    const folder = bootstrap.meta.folderName ? ` (${bootstrap.meta.folderName})` : "";
+    banner.textContent = `Chrome revoked backup folder access${folder}. Open manager to allow it again.`;
   } else if (bootstrap.folderStatus === "no-folder") {
     banner.className = "banner warn";
     banner.classList.remove("hidden");

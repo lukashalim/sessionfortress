@@ -73,7 +73,8 @@ function paintFolderBanner(): void {
   if (bootstrap.folderStatus === "permission-expired") {
     folderBanner.className = "banner bad";
     folderBanner.classList.remove("hidden");
-    folderBanner.innerHTML = `<div class="spread"><span>Click to re-allow folder access. Backups are paused until you do.</span><button class="btn btn-primary" id="reallow" type="button">Re-allow folder</button></div>`;
+    const folder = bootstrap.meta.folderName ? ` (${bootstrap.meta.folderName})` : "";
+    folderBanner.innerHTML = `<div class="stack"><span>Chrome revoked access to your backup folder${escapeHtml(folder)}. Backups are paused until you allow it again.</span><button class="btn btn-primary" id="reallow" type="button">Allow this folder again</button></div>`;
     document.getElementById("reallow")?.addEventListener("click", () => void reallowFolder());
     return;
   }

@@ -3,7 +3,9 @@ import { relativeTime } from "./util";
 
 export function statusLabel(status: FolderStatus, bootstrap: Bootstrap): { text: string; kind: "ok" | "warn" | "bad" } {
   if (status === "no-folder") return { text: "No off-profile backup", kind: "warn" };
-  if (status === "permission-expired") return { text: "Permission expired", kind: "bad" };
+  if (status === "permission-expired") {
+    return { text: "Chrome revoked folder access. Backups paused. Click \"Allow this folder again\" below.", kind: "bad" };
+  }
   if (status === "failed") return { text: "Last backup failed", kind: "bad" };
   if (status === "ok" && bootstrap.meta.lastBackupAt) {
     return { text: `Backup OK · ${relativeTime(bootstrap.meta.lastBackupAt)}`, kind: "ok" };
