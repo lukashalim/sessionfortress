@@ -25,10 +25,24 @@ function sessions(): Session[] {
 function paint(): void {
   if (!bootstrap) return;
   renderPill(statusEl, bootstrap);
+  paintStatusPill();
   paintFolderName();
   paintRecovery();
   paintFolderBanner();
   paintList();
+}
+
+function paintStatusPill(): void {
+  if (!bootstrap) return;
+  if (bootstrap.folderStatus === "permission-expired") {
+    statusEl.classList.add("clickable");
+    statusEl.disabled = false;
+    statusEl.title = "Click to allow folder access again";
+  } else {
+    statusEl.classList.remove("clickable");
+    statusEl.disabled = true;
+    statusEl.title = "";
+  }
 }
 
 function paintFolderName(): void {
@@ -349,6 +363,11 @@ searchEl.addEventListener("input", () => {
   paintList();
 });
 
+statusEl.addEventListener("click", () => {
+  if (bootstrap?.folderStatus === "permission-expired") {
+    void reallowFolder();
+  }
+});
 document.getElementById("save-window")?.addEventListener("click", () => void save("SAVE_WINDOW"));
 document.getElementById("save-all")?.addEventListener("click", () => void save("SAVE_ALL"));
 document.getElementById("pick-folder")?.addEventListener("click", () => void chooseFolder());

@@ -196,6 +196,18 @@ h2 {
 .pill.warn { color: var(--warn); border-color: #4d4224; }
 .pill.bad { color: var(--bad); border-color: #4d2b26; }
 
+.pill.clickable {
+  cursor: pointer;
+}
+
+.pill.clickable:hover {
+  filter: brightness(1.1);
+}
+
+.pill.clickable.bad:hover {
+  background: #221815;
+}
+
 .folder-name {
   color: var(--muted);
   font-size: 12px;
