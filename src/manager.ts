@@ -266,11 +266,51 @@ async function restore(sessionId: string, mode: RestoreMode, duplicateConfirmed:
 }
 
 async function rename(sessionId: string): Promise<void> {
+  const card = document.querySelector(`[data-id="${sessionId}"]`) as HTMLElement | null;
+  if (!card) return;
+  const nameEl = card.querySelector(".session-name") as HTMLElement | null;
+  if (!nameEl) return;
+  
   const current = sessions().find((s) => s.id === sessionId);
-  const name = window.prompt("Rename session", current?.name ?? "");
-  if (name == null) return;
-  const response = await sendRequest({ type: "RENAME", sessionId, name });
-  if (response.ok && "bootstrap" in response) await applyBootstrap(response.bootstrap);
+  const originalName = current?.name ?? "";
+  
+  const input = document.createElement("input");
+  input.type = "text";
+  input.value = originalName;
+  input.className = "input rename-input";
+  input.style.fontSize = "14px";
+  input.style.fontWeight = "600";
+  input.style.padding = "4px 8px";
+  input.style.margin = "0";
+  
+  const finish = async (save: boolean): Promise<void> => {
+    const newName = input.value.trim();
+    nameEl.textContent = originalName;
+    nameEl.style.display = "";
+    input.remove();
+    
+    if (save && newName && newName !== originalName) {
+      const response = await sendRequest({ type: "RENAME", sessionId, name: newName });
+      if (response.ok && "bootstrap" in response) await applyBootstrap(response.bootstrap);
+    }
+  };
+  
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      void finish(true);
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      void finish(false);
+    }
+  });
+  
+  input.addEventListener("blur", () => void finish(true));
+  
+  nameEl.style.display = "none";
+  nameEl.after(input);
+  input.focus();
+  input.select();
 }
 
 async function removeSession(sessionId: string): Promise<void> {

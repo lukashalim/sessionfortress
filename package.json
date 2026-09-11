@@ -1,6 +1,6 @@
 {
   "name": "session-fortress",
-  "version": "0.1.1",
+  "version": "0.1.3",
   "private": true,
   "description": "Save Chrome windows and Tab Groups. Mirror every save to a folder you control.",
   "type": "module",
