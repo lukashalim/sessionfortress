@@ -8,6 +8,7 @@ const brand = document.getElementById("brand") as HTMLElement;
 const statusEl = document.getElementById("status") as HTMLElement;
 const recoveryEl = document.getElementById("recovery") as HTMLElement;
 const folderBanner = document.getElementById("folder-banner") as HTMLElement;
+const folderNameEl = document.getElementById("folder-name") as HTMLElement;
 const listEl = document.getElementById("list") as HTMLElement;
 const searchEl = document.getElementById("search") as HTMLInputElement;
 const importFile = document.getElementById("import-file") as HTMLInputElement;
@@ -24,9 +25,20 @@ function sessions(): Session[] {
 function paint(): void {
   if (!bootstrap) return;
   renderPill(statusEl, bootstrap);
+  paintFolderName();
   paintRecovery();
   paintFolderBanner();
   paintList();
+}
+
+function paintFolderName(): void {
+  if (!bootstrap) return;
+  if (bootstrap.meta.folderName && bootstrap.folderStatus !== "no-folder") {
+    folderNameEl.textContent = bootstrap.meta.folderName;
+    folderNameEl.style.display = "inline";
+  } else {
+    folderNameEl.style.display = "none";
+  }
 }
 
 function paintRecovery(): void {
@@ -68,7 +80,7 @@ function paintFolderBanner(): void {
   if (bootstrap.folderStatus === "no-folder") {
     folderBanner.className = "banner warn";
     folderBanner.classList.remove("hidden");
-    folderBanner.innerHTML = `<div class="spread"><span>Pick a backup folder (recommended). Dropbox / Drive / iCloud / Documents all work if that folder is on disk.</span><button class="btn btn-primary" id="pick-now" type="button">Pick folder</button></div>`;
+    folderBanner.innerHTML = `<div class="spread"><span>Choose a backup folder (recommended). Dropbox / Drive / iCloud / Documents all work if that folder is on disk.</span><button class="btn btn-primary" id="pick-now" type="button">Choose folder</button></div>`;
     document.getElementById("pick-now")?.addEventListener("click", () => void chooseFolder());
     return;
   }

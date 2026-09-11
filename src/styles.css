@@ -196,6 +196,16 @@ h2 {
 .pill.warn { color: var(--warn); border-color: #4d4224; }
 .pill.bad { color: var(--bad); border-color: #4d2b26; }
 
+.folder-name {
+  color: var(--muted);
+  font-size: 12px;
+  padding: 0 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+
 .banner {
   border: 1px solid var(--border);
   background: var(--surface);
