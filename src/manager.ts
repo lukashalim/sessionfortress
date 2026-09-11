@@ -283,7 +283,12 @@ async function rename(sessionId: string): Promise<void> {
   input.style.padding = "4px 8px";
   input.style.margin = "0";
   
+  let finished = false;
+  
   const finish = async (save: boolean): Promise<void> => {
+    if (finished) return;
+    finished = true;
+    
     const newName = input.value.trim();
     nameEl.textContent = originalName;
     nameEl.style.display = "";
