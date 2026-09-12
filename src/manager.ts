@@ -13,7 +13,7 @@ const listEl = document.getElementById("list") as HTMLElement;
 const searchEl = document.getElementById("search") as HTMLInputElement;
 const importFile = document.getElementById("import-file") as HTMLInputElement;
 
-brand.innerHTML = `${MARK_SVG}<div><h1>Session Fortress</h1><div class="sub">Named sessions that survive a Chrome wipe</div></div>`;
+brand.innerHTML = `${MARK_SVG}<div><h1>Session Fortress</h1><div class="sub">Saved in this Chrome profile. Mirror to a folder so Repair Chrome or a new profile doesn't take them with it.</div></div>`;
 
 let bootstrap: Bootstrap | null = null;
 let query = "";
@@ -55,7 +55,7 @@ function paintStorageInfo(): void {
   
   let folderLine = "";
   if (bootstrap.folderStatus === "no-folder") {
-    folderLine = `<div class="location-line">${folderIcon}<span>No folder mirror yet — choose one to survive profile resets</span></div>`;
+    folderLine = `<div class="location-line">${folderIcon}<span>No folder mirror yet — this Chrome-only copy can vanish on Repair Chrome or a new profile</span></div>`;
   } else if (bootstrap.folderStatus === "permission-expired") {
     const folderName = bootstrap.meta.folderName ? escapeHtml(bootstrap.meta.folderName) : "your chosen folder";
     folderLine = `<div class="location-line">${folderIcon}<span>Folder mirror paused: <strong>${folderName}</strong> (look for session-fortress-latest.json)</span></div>`;
@@ -101,14 +101,14 @@ function paintFolderBanner(): void {
     folderBanner.className = "banner bad";
     folderBanner.classList.remove("hidden");
     const folderName = bootstrap.meta.folderName ? escapeHtml(bootstrap.meta.folderName) : "the folder you picked";
-    folderBanner.innerHTML = `<div class="stack"><span>Chrome revoked access to <strong>${folderName}</strong>. Your sessions are still safe in Chrome. Folder writes are paused until you allow it again.</span><button class="btn btn-primary" id="reallow" type="button">Allow this folder again</button></div>`;
+    folderBanner.innerHTML = `<div class="stack"><span>Chrome paused writes to <strong>${folderName}</strong>. Sessions are still in this profile — that copy is gone if you Repair Chrome, switch profiles, or delete the profile. Allow the folder again to keep the mirror current.</span><button class="btn btn-primary" id="reallow" type="button">Allow this folder again</button></div>`;
     document.getElementById("reallow")?.addEventListener("click", () => void reallowFolder());
     return;
   }
   if (bootstrap.folderStatus === "no-folder") {
     folderBanner.className = "banner warn";
     folderBanner.classList.remove("hidden");
-    folderBanner.innerHTML = `<div class="spread"><span>Choose a backup folder to survive profile resets. Dropbox / Drive / iCloud / Documents all work if that folder is on disk. Look for <code>session-fortress-latest.json</code> in the folder you pick.</span><button class="btn btn-primary" id="pick-now" type="button">Choose folder</button></div>`;
+    folderBanner.innerHTML = `<div class="spread"><span>Sessions are only in this Chrome profile. Repair Chrome, a new profile, or deleting this profile wipes them. Choose a folder to mirror — look for <code>session-fortress-latest.json</code> in the folder you pick.</span><button class="btn btn-primary" id="pick-now" type="button">Choose folder</button></div>`;
     document.getElementById("pick-now")?.addEventListener("click", () => void chooseFolder());
     return;
   }
@@ -128,7 +128,7 @@ function paintList(): void {
   if (items.length === 0) {
     listEl.innerHTML =
       sessions().length === 0
-        ? `<div class="empty">No sessions yet. Save a window, or pick a backup folder first so a crash can’t wipe you.</div>`
+        ? `<div class="empty">No sessions yet. Save a window. Add a folder mirror if you want a copy that outlives this profile.</div>`
         : `<div class="empty">No sessions match that search.</div>`;
     return;
   }

@@ -17,7 +17,7 @@ function paint(bootstrap: Bootstrap): void {
     banner.className = "banner bad";
     banner.classList.remove("hidden");
     const folderName = bootstrap.meta.folderName || "the folder you picked";
-    banner.textContent = `Chrome revoked access to ${folderName}. Your sessions are safe in Chrome. Open manager to allow it again.`;
+    banner.textContent = `Chrome paused writes to ${folderName}. Sessions are still in this profile (lost on Repair Chrome or a new profile). Open manager to allow the folder again.`;
   } else if (bootstrap.folderStatus === "no-folder") {
     banner.className = "banner warn";
     banner.classList.remove("hidden");
