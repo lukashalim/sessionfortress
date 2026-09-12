@@ -55,14 +55,14 @@ function paintStorageInfo(): void {
   
   let folderLine = "";
   if (bootstrap.folderStatus === "no-folder") {
-    folderLine = `<div class="location-line">${folderIcon}<span>No folder mirror yet</span></div>`;
+    folderLine = `<div class="location-line">${folderIcon}<span>No folder mirror yet — choose one to survive profile resets</span></div>`;
   } else if (bootstrap.folderStatus === "permission-expired") {
-    const folderName = bootstrap.meta.folderName ? ` (${escapeHtml(bootstrap.meta.folderName)})` : "";
-    folderLine = `<div class="location-line">${folderIcon}<span>Folder mirror paused${folderName}</span></div>`;
+    const folderName = bootstrap.meta.folderName ? escapeHtml(bootstrap.meta.folderName) : "your chosen folder";
+    folderLine = `<div class="location-line">${folderIcon}<span>Folder mirror paused: <strong>${folderName}</strong> (look for session-fortress-latest.json)</span></div>`;
   } else if (bootstrap.folderStatus === "ok" && bootstrap.meta.folderName) {
-    folderLine = `<div class="location-line">${folderIcon}<span>Mirrored to ${escapeHtml(bootstrap.meta.folderName)} (survives profile reset)</span></div>`;
+    folderLine = `<div class="location-line">${folderIcon}<span>Mirrored to <strong>${escapeHtml(bootstrap.meta.folderName)}</strong> (session-fortress-latest.json + dated backups)</span></div>`;
   } else if (bootstrap.folderStatus === "failed" && bootstrap.meta.folderName) {
-    folderLine = `<div class="location-line">${folderIcon}<span>Mirror failed: ${escapeHtml(bootstrap.meta.folderName)}</span></div>`;
+    folderLine = `<div class="location-line">${folderIcon}<span>Mirror failed: <strong>${escapeHtml(bootstrap.meta.folderName)}</strong></span></div>`;
   }
   
   storageInfoEl.innerHTML = chromeLine + folderLine;
@@ -100,22 +100,23 @@ function paintFolderBanner(): void {
   if (bootstrap.folderStatus === "permission-expired") {
     folderBanner.className = "banner bad";
     folderBanner.classList.remove("hidden");
-    const folder = bootstrap.meta.folderName ? ` (${bootstrap.meta.folderName})` : "";
-    folderBanner.innerHTML = `<div class="stack"><span>Chrome revoked access to your backup folder${escapeHtml(folder)}. Your sessions are still safe in Chrome. Folder writes are paused until you allow it again.</span><button class="btn btn-primary" id="reallow" type="button">Allow this folder again</button></div>`;
+    const folderName = bootstrap.meta.folderName ? escapeHtml(bootstrap.meta.folderName) : "the folder you picked";
+    folderBanner.innerHTML = `<div class="stack"><span>Chrome revoked access to <strong>${folderName}</strong>. Your sessions are still safe in Chrome. Folder writes are paused until you allow it again.</span><button class="btn btn-primary" id="reallow" type="button">Allow this folder again</button></div>`;
     document.getElementById("reallow")?.addEventListener("click", () => void reallowFolder());
     return;
   }
   if (bootstrap.folderStatus === "no-folder") {
     folderBanner.className = "banner warn";
     folderBanner.classList.remove("hidden");
-    folderBanner.innerHTML = `<div class="spread"><span>Choose a backup folder (recommended). Dropbox / Drive / iCloud / Documents all work if that folder is on disk.</span><button class="btn btn-primary" id="pick-now" type="button">Choose folder</button></div>`;
+    folderBanner.innerHTML = `<div class="spread"><span>Choose a backup folder to survive profile resets. Dropbox / Drive / iCloud / Documents all work if that folder is on disk. Look for <code>session-fortress-latest.json</code> in the folder you pick.</span><button class="btn btn-primary" id="pick-now" type="button">Choose folder</button></div>`;
     document.getElementById("pick-now")?.addEventListener("click", () => void chooseFolder());
     return;
   }
   if (bootstrap.folderStatus === "failed" && bootstrap.meta.lastBackupError) {
     folderBanner.className = "banner bad";
     folderBanner.classList.remove("hidden");
-    folderBanner.innerHTML = `<div class="spread"><span>${escapeHtml(bootstrap.meta.lastBackupError)}</span><button class="btn" id="retry-write" type="button">Retry backup</button></div>`;
+    const folderName = bootstrap.meta.folderName ? `(${escapeHtml(bootstrap.meta.folderName)})` : "";
+    folderBanner.innerHTML = `<div class="spread"><span>${escapeHtml(bootstrap.meta.lastBackupError)} ${folderName}</span><button class="btn" id="retry-write" type="button">Retry backup</button></div>`;
     document.getElementById("retry-write")?.addEventListener("click", () => void retryWrite());
     return;
   }

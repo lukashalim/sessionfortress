@@ -16,12 +16,12 @@ function paint(bootstrap: Bootstrap): void {
   if (bootstrap.folderStatus === "permission-expired") {
     banner.className = "banner bad";
     banner.classList.remove("hidden");
-    const folder = bootstrap.meta.folderName ? ` (${bootstrap.meta.folderName})` : "";
-    banner.textContent = `Chrome revoked backup folder access${folder}. Your sessions are safe in Chrome. Open manager to allow it again.`;
+    const folderName = bootstrap.meta.folderName || "the folder you picked";
+    banner.textContent = `Chrome revoked access to ${folderName}. Your sessions are safe in Chrome. Open manager to allow it again.`;
   } else if (bootstrap.folderStatus === "no-folder") {
     banner.className = "banner warn";
     banner.classList.remove("hidden");
-    banner.textContent = "No off-profile backup. Pick a folder in the manager.";
+    banner.textContent = "No off-profile backup. Pick a folder in the manager (look for session-fortress-latest.json there).";
   } else if (bootstrap.folderStatus === "failed") {
     banner.className = "banner bad";
     banner.classList.remove("hidden");
@@ -44,11 +44,13 @@ function paintStorageSummary(bootstrap: Bootstrap): void {
   if (bootstrap.folderStatus === "no-folder") {
     folderPart = "No folder mirror";
   } else if (bootstrap.folderStatus === "permission-expired") {
-    folderPart = "Folder mirror paused";
+    const folderName = bootstrap.meta.folderName || "chosen folder";
+    folderPart = `Folder mirror paused (${folderName})`;
   } else if (bootstrap.folderStatus === "ok" && bootstrap.meta.folderName) {
-    folderPart = `Mirrored to ${bootstrap.meta.folderName}`;
+    folderPart = `Mirrored to folder: ${bootstrap.meta.folderName}`;
   } else if (bootstrap.folderStatus === "failed") {
-    folderPart = "Folder mirror failed";
+    const folderName = bootstrap.meta.folderName || "chosen folder";
+    folderPart = `Folder mirror failed (${folderName})`;
   }
   
   storageSummaryEl.textContent = `Saved in Chrome profile · ${folderPart}`;

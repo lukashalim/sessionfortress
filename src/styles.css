@@ -54,6 +54,19 @@ a:hover {
   text-decoration: underline;
 }
 
+code {
+  font-family: var(--mono);
+  font-size: 0.95em;
+  background: var(--bg-2);
+  padding: 1px 4px;
+  border-radius: 2px;
+  border: 1px solid var(--border);
+}
+
+strong {
+  font-weight: 650;
+}
+
 .popup {
   width: 320px;
   min-height: 220px;
