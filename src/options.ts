@@ -33,6 +33,23 @@ async function load(): Promise<void> {
   if (response.ok && "bootstrap" in response) {
     bootstrap = response.bootstrap;
     paint();
+    await tryAutoRestorePermission();
+  }
+}
+
+async function tryAutoRestorePermission(): Promise<void> {
+  if (!bootstrap || bootstrap.folderStatus !== "permission-expired") return;
+  try {
+    const perm = await requestFolderPermission();
+    if (perm === "granted") {
+      const response = await sendRequest({ type: "WRITE_FOLDER_NOW" });
+      if (response.ok && "bootstrap" in response) {
+        bootstrap = response.bootstrap;
+        paint();
+      }
+    }
+  } catch {
+    // User dismissed or error occurred; status will show permission-expired
   }
 }
 

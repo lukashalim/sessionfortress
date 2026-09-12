@@ -399,4 +399,18 @@ importFile.addEventListener("change", async () => {
 void (async () => {
   await sendRequest({ type: "HEALTH_CHECK" });
   await refresh();
+  await tryAutoRestorePermission();
 })();
+
+async function tryAutoRestorePermission(): Promise<void> {
+  if (!bootstrap || bootstrap.folderStatus !== "permission-expired") return;
+  try {
+    const perm = await requestFolderPermission();
+    if (perm === "granted") {
+      const response = await sendRequest({ type: "WRITE_FOLDER_NOW" });
+      if (response.ok && "bootstrap" in response) await applyBootstrap(response.bootstrap);
+    }
+  } catch {
+    // User dismissed or error occurred; banner will be shown
+  }
+}
