@@ -17,7 +17,7 @@ function paint(bootstrap: Bootstrap): void {
     banner.className = "banner bad";
     banner.classList.remove("hidden");
     const folderName = bootstrap.meta.folderName || "the folder you picked";
-    banner.textContent = `Chrome paused writes to ${folderName}. Sessions are still in this profile (lost on Repair Chrome or a new profile). Open manager to allow the folder again.`;
+    banner.textContent = `Chrome paused writes to the ${folderName} folder. Sessions are still in this profile (lost on Repair Chrome or a new profile). Open manager to allow the folder again.`;
   } else if (bootstrap.folderStatus === "no-folder") {
     banner.className = "banner warn";
     banner.classList.remove("hidden");
@@ -44,12 +44,12 @@ function paintStorageSummary(bootstrap: Bootstrap): void {
   if (bootstrap.folderStatus === "no-folder") {
     folderPart = "No folder mirror";
   } else if (bootstrap.folderStatus === "permission-expired") {
-    const folderName = bootstrap.meta.folderName || "chosen folder";
+    const folderName = bootstrap.meta.folderName || "the chosen folder";
     folderPart = `Folder mirror paused (${folderName})`;
   } else if (bootstrap.folderStatus === "ok" && bootstrap.meta.folderName) {
-    folderPart = `Mirrored to folder: ${bootstrap.meta.folderName}`;
+    folderPart = `Mirrored to the ${bootstrap.meta.folderName} folder on your computer`;
   } else if (bootstrap.folderStatus === "failed") {
-    const folderName = bootstrap.meta.folderName || "chosen folder";
+    const folderName = bootstrap.meta.folderName || "the chosen folder";
     folderPart = `Folder mirror failed (${folderName})`;
   }
   

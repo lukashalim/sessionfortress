@@ -58,11 +58,11 @@ function paintStorageInfo(): void {
     folderLine = `<div class="location-line">${folderIcon}<span>No folder mirror yet — this Chrome-only copy can vanish on Repair Chrome or a new profile</span></div>`;
   } else if (bootstrap.folderStatus === "permission-expired") {
     const folderName = bootstrap.meta.folderName ? escapeHtml(bootstrap.meta.folderName) : "your chosen folder";
-    folderLine = `<div class="location-line">${folderIcon}<span>Folder mirror paused: <strong>${folderName}</strong> (look for session-fortress-latest.json)</span></div>`;
+    folderLine = `<div class="location-line">${folderIcon}<span>Folder mirror paused: the <strong>${folderName}</strong> folder on your computer (look for session-fortress-latest.json)</span></div>`;
   } else if (bootstrap.folderStatus === "ok" && bootstrap.meta.folderName) {
-    folderLine = `<div class="location-line">${folderIcon}<span>Mirrored to <strong>${escapeHtml(bootstrap.meta.folderName)}</strong> (session-fortress-latest.json + dated backups)</span></div>`;
+    folderLine = `<div class="location-line">${folderIcon}<span>Mirrored to the <strong>${escapeHtml(bootstrap.meta.folderName)}</strong> folder on your computer (session-fortress-latest.json + dated backups)</span></div>`;
   } else if (bootstrap.folderStatus === "failed" && bootstrap.meta.folderName) {
-    folderLine = `<div class="location-line">${folderIcon}<span>Mirror failed: <strong>${escapeHtml(bootstrap.meta.folderName)}</strong></span></div>`;
+    folderLine = `<div class="location-line">${folderIcon}<span>Mirror failed: the <strong>${escapeHtml(bootstrap.meta.folderName)}</strong> folder</span></div>`;
   }
   
   storageInfoEl.innerHTML = chromeLine + folderLine;
@@ -101,7 +101,7 @@ function paintFolderBanner(): void {
     folderBanner.className = "banner bad";
     folderBanner.classList.remove("hidden");
     const folderName = bootstrap.meta.folderName ? escapeHtml(bootstrap.meta.folderName) : "the folder you picked";
-    folderBanner.innerHTML = `<div class="stack"><span>Chrome paused writes to <strong>${folderName}</strong>. Sessions are still in this profile — that copy is gone if you Repair Chrome, switch profiles, or delete the profile. Allow the folder again to keep the mirror current.</span><button class="btn btn-primary" id="reallow" type="button">Allow this folder again</button></div>`;
+    folderBanner.innerHTML = `<div class="stack"><span>Chrome paused writes to the <strong>${folderName}</strong> folder. Sessions are still in this profile — that copy is gone if you Repair Chrome, switch profiles, or delete the profile. Allow the folder again to keep the mirror current.</span><button class="btn btn-primary" id="reallow" type="button">Allow this folder again</button></div>`;
     document.getElementById("reallow")?.addEventListener("click", () => void reallowFolder());
     return;
   }
