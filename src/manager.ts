@@ -8,7 +8,7 @@ const brand = document.getElementById("brand") as HTMLElement;
 const statusEl = document.getElementById("status") as HTMLElement;
 const recoveryEl = document.getElementById("recovery") as HTMLElement;
 const folderBanner = document.getElementById("folder-banner") as HTMLElement;
-const folderNameEl = document.getElementById("folder-name") as HTMLElement;
+const storageInfoEl = document.getElementById("storage-info") as HTMLElement;
 const listEl = document.getElementById("list") as HTMLElement;
 const searchEl = document.getElementById("search") as HTMLInputElement;
 const importFile = document.getElementById("import-file") as HTMLInputElement;
@@ -26,7 +26,7 @@ function paint(): void {
   if (!bootstrap) return;
   renderPill(statusEl, bootstrap);
   paintStatusPill();
-  paintFolderName();
+  paintStorageInfo();
   paintRecovery();
   paintFolderBanner();
   paintList();
@@ -45,14 +45,27 @@ function paintStatusPill(): void {
   }
 }
 
-function paintFolderName(): void {
+function paintStorageInfo(): void {
   if (!bootstrap) return;
-  if (bootstrap.meta.folderName && bootstrap.folderStatus !== "no-folder") {
-    folderNameEl.textContent = bootstrap.meta.folderName;
-    folderNameEl.style.display = "inline";
-  } else {
-    folderNameEl.style.display = "none";
+  
+  const chromeIcon = `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M9 12h6"/></svg>`;
+  const folderIcon = `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-7l-2-2H5a2 2 0 00-2 2z"/></svg>`;
+  
+  const chromeLine = `<div class="location-line">${chromeIcon}<span>Saved in this Chrome profile</span></div>`;
+  
+  let folderLine = "";
+  if (bootstrap.folderStatus === "no-folder") {
+    folderLine = `<div class="location-line">${folderIcon}<span>No folder mirror yet</span></div>`;
+  } else if (bootstrap.folderStatus === "permission-expired") {
+    const folderName = bootstrap.meta.folderName ? ` (${escapeHtml(bootstrap.meta.folderName)})` : "";
+    folderLine = `<div class="location-line">${folderIcon}<span>Folder mirror paused${folderName}</span></div>`;
+  } else if (bootstrap.folderStatus === "ok" && bootstrap.meta.folderName) {
+    folderLine = `<div class="location-line">${folderIcon}<span>Mirrored to ${escapeHtml(bootstrap.meta.folderName)} (survives profile reset)</span></div>`;
+  } else if (bootstrap.folderStatus === "failed" && bootstrap.meta.folderName) {
+    folderLine = `<div class="location-line">${folderIcon}<span>Mirror failed: ${escapeHtml(bootstrap.meta.folderName)}</span></div>`;
   }
+  
+  storageInfoEl.innerHTML = chromeLine + folderLine;
 }
 
 function paintRecovery(): void {
@@ -88,7 +101,7 @@ function paintFolderBanner(): void {
     folderBanner.className = "banner bad";
     folderBanner.classList.remove("hidden");
     const folder = bootstrap.meta.folderName ? ` (${bootstrap.meta.folderName})` : "";
-    folderBanner.innerHTML = `<div class="stack"><span>Chrome revoked access to your backup folder${escapeHtml(folder)}. Backups are paused until you allow it again.</span><button class="btn btn-primary" id="reallow" type="button">Allow this folder again</button></div>`;
+    folderBanner.innerHTML = `<div class="stack"><span>Chrome revoked access to your backup folder${escapeHtml(folder)}. Your sessions are still safe in Chrome. Folder writes are paused until you allow it again.</span><button class="btn btn-primary" id="reallow" type="button">Allow this folder again</button></div>`;
     document.getElementById("reallow")?.addEventListener("click", () => void reallowFolder());
     return;
   }

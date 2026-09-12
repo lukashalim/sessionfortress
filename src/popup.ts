@@ -5,17 +5,19 @@ import { relativeTime } from "./lib/util";
 
 const brand = document.getElementById("brand") as HTMLElement;
 const statusEl = document.getElementById("status") as HTMLElement;
+const storageSummaryEl = document.getElementById("storage-summary") as HTMLElement;
 const banner = document.getElementById("banner") as HTMLElement;
 
 brand.innerHTML = `${MARK_SVG}<h1>Session Fortress</h1>`;
 
 function paint(bootstrap: Bootstrap): void {
   renderPill(statusEl, bootstrap);
+  paintStorageSummary(bootstrap);
   if (bootstrap.folderStatus === "permission-expired") {
     banner.className = "banner bad";
     banner.classList.remove("hidden");
     const folder = bootstrap.meta.folderName ? ` (${bootstrap.meta.folderName})` : "";
-    banner.textContent = `Chrome revoked backup folder access${folder}. Open manager to allow it again.`;
+    banner.textContent = `Chrome revoked backup folder access${folder}. Your sessions are safe in Chrome. Open manager to allow it again.`;
   } else if (bootstrap.folderStatus === "no-folder") {
     banner.className = "banner warn";
     banner.classList.remove("hidden");
@@ -35,6 +37,21 @@ function paint(bootstrap: Bootstrap): void {
   } else {
     banner.classList.add("hidden");
   }
+}
+
+function paintStorageSummary(bootstrap: Bootstrap): void {
+  let folderPart = "";
+  if (bootstrap.folderStatus === "no-folder") {
+    folderPart = "No folder mirror";
+  } else if (bootstrap.folderStatus === "permission-expired") {
+    folderPart = "Folder mirror paused";
+  } else if (bootstrap.folderStatus === "ok" && bootstrap.meta.folderName) {
+    folderPart = `Mirrored to ${bootstrap.meta.folderName}`;
+  } else if (bootstrap.folderStatus === "failed") {
+    folderPart = "Folder mirror failed";
+  }
+  
+  storageSummaryEl.textContent = `Saved in Chrome profile · ${folderPart}`;
 }
 
 async function act(type: "SAVE_WINDOW" | "SAVE_ALL" | "STASH"): Promise<void> {
