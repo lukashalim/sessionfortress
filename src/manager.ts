@@ -8,11 +8,12 @@ const brand = document.getElementById("brand") as HTMLElement;
 const statusEl = document.getElementById("status") as HTMLElement;
 const recoveryEl = document.getElementById("recovery") as HTMLElement;
 const folderBanner = document.getElementById("folder-banner") as HTMLElement;
+const storageInfoEl = document.getElementById("storage-info") as HTMLElement;
 const listEl = document.getElementById("list") as HTMLElement;
 const searchEl = document.getElementById("search") as HTMLInputElement;
 const importFile = document.getElementById("import-file") as HTMLInputElement;
 
-brand.innerHTML = `${MARK_SVG}<div><h1>Session Fortress</h1><div class="sub">Named sessions that survive a Chrome wipe</div></div>`;
+brand.innerHTML = `${MARK_SVG}<div><h1>Session Fortress</h1><div class="sub">Saved in this Chrome profile. Mirror to a folder so Repair Chrome or a new profile doesn't take them with it.</div></div>`;
 
 let bootstrap: Bootstrap | null = null;
 let query = "";
@@ -24,9 +25,47 @@ function sessions(): Session[] {
 function paint(): void {
   if (!bootstrap) return;
   renderPill(statusEl, bootstrap);
+  paintStatusPill();
+  paintStorageInfo();
   paintRecovery();
   paintFolderBanner();
   paintList();
+}
+
+function paintStatusPill(): void {
+  if (!bootstrap) return;
+  if (bootstrap.folderStatus === "permission-expired") {
+    statusEl.classList.add("clickable");
+    statusEl.disabled = false;
+    statusEl.title = "Click to allow folder access again";
+  } else {
+    statusEl.classList.remove("clickable");
+    statusEl.disabled = true;
+    statusEl.title = "";
+  }
+}
+
+function paintStorageInfo(): void {
+  if (!bootstrap) return;
+  
+  const chromeIcon = `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M9 12h6"/></svg>`;
+  const folderIcon = `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-7l-2-2H5a2 2 0 00-2 2z"/></svg>`;
+  
+  const chromeLine = `<div class="location-line">${chromeIcon}<span>Saved in this Chrome profile</span></div>`;
+  
+  let folderLine = "";
+  if (bootstrap.folderStatus === "no-folder") {
+    folderLine = `<div class="location-line">${folderIcon}<span>No folder mirror yet — this Chrome-only copy can vanish on Repair Chrome or a new profile</span></div>`;
+  } else if (bootstrap.folderStatus === "permission-expired") {
+    const folderName = bootstrap.meta.folderName ? escapeHtml(bootstrap.meta.folderName) : "your chosen folder";
+    folderLine = `<div class="location-line">${folderIcon}<span>Folder mirror paused: the <strong>${folderName}</strong> folder on your computer (look for session-fortress-latest.json)</span></div>`;
+  } else if (bootstrap.folderStatus === "ok" && bootstrap.meta.folderName) {
+    folderLine = `<div class="location-line">${folderIcon}<span>Mirrored to the <strong>${escapeHtml(bootstrap.meta.folderName)}</strong> folder on your computer (session-fortress-latest.json + dated backups)</span></div>`;
+  } else if (bootstrap.folderStatus === "failed" && bootstrap.meta.folderName) {
+    folderLine = `<div class="location-line">${folderIcon}<span>Mirror failed: the <strong>${escapeHtml(bootstrap.meta.folderName)}</strong> folder</span></div>`;
+  }
+  
+  storageInfoEl.innerHTML = chromeLine + folderLine;
 }
 
 function paintRecovery(): void {
@@ -61,21 +100,23 @@ function paintFolderBanner(): void {
   if (bootstrap.folderStatus === "permission-expired") {
     folderBanner.className = "banner bad";
     folderBanner.classList.remove("hidden");
-    folderBanner.innerHTML = `<div class="spread"><span>Click to re-allow folder access. Backups are paused until you do.</span><button class="btn btn-primary" id="reallow" type="button">Re-allow folder</button></div>`;
+    const folderName = bootstrap.meta.folderName ? escapeHtml(bootstrap.meta.folderName) : "the folder you picked";
+    folderBanner.innerHTML = `<div class="stack"><span>Chrome paused writes to the <strong>${folderName}</strong> folder. Sessions are still in this profile — that copy is gone if you Repair Chrome, switch profiles, or delete the profile. Allow the folder again to keep the mirror current.</span><button class="btn btn-primary" id="reallow" type="button">Allow this folder again</button></div>`;
     document.getElementById("reallow")?.addEventListener("click", () => void reallowFolder());
     return;
   }
   if (bootstrap.folderStatus === "no-folder") {
     folderBanner.className = "banner warn";
     folderBanner.classList.remove("hidden");
-    folderBanner.innerHTML = `<div class="spread"><span>Pick a backup folder (recommended). Dropbox / Drive / iCloud / Documents all work if that folder is on disk.</span><button class="btn btn-primary" id="pick-now" type="button">Pick folder</button></div>`;
+    folderBanner.innerHTML = `<div class="spread"><span>Sessions are only in this Chrome profile. Repair Chrome, a new profile, or deleting this profile wipes them. Choose a folder to mirror — look for <code>session-fortress-latest.json</code> in the folder you pick.</span><button class="btn btn-primary" id="pick-now" type="button">Choose folder</button></div>`;
     document.getElementById("pick-now")?.addEventListener("click", () => void chooseFolder());
     return;
   }
   if (bootstrap.folderStatus === "failed" && bootstrap.meta.lastBackupError) {
     folderBanner.className = "banner bad";
     folderBanner.classList.remove("hidden");
-    folderBanner.innerHTML = `<div class="spread"><span>${escapeHtml(bootstrap.meta.lastBackupError)}</span><button class="btn" id="retry-write" type="button">Retry backup</button></div>`;
+    const folderName = bootstrap.meta.folderName ? `(${escapeHtml(bootstrap.meta.folderName)})` : "";
+    folderBanner.innerHTML = `<div class="spread"><span>${escapeHtml(bootstrap.meta.lastBackupError)} ${folderName}</span><button class="btn" id="retry-write" type="button">Retry backup</button></div>`;
     document.getElementById("retry-write")?.addEventListener("click", () => void retryWrite());
     return;
   }
@@ -87,7 +128,7 @@ function paintList(): void {
   if (items.length === 0) {
     listEl.innerHTML =
       sessions().length === 0
-        ? `<div class="empty">No sessions yet. Save a window, or pick a backup folder first so a crash can’t wipe you.</div>`
+        ? `<div class="empty">No sessions yet. Save a window. Add a folder mirror if you want a copy that outlives this profile.</div>`
         : `<div class="empty">No sessions match that search.</div>`;
     return;
   }
@@ -266,11 +307,56 @@ async function restore(sessionId: string, mode: RestoreMode, duplicateConfirmed:
 }
 
 async function rename(sessionId: string): Promise<void> {
+  const card = document.querySelector(`[data-id="${sessionId}"]`) as HTMLElement | null;
+  if (!card) return;
+  const nameEl = card.querySelector(".session-name") as HTMLElement | null;
+  if (!nameEl) return;
+  
   const current = sessions().find((s) => s.id === sessionId);
-  const name = window.prompt("Rename session", current?.name ?? "");
-  if (name == null) return;
-  const response = await sendRequest({ type: "RENAME", sessionId, name });
-  if (response.ok && "bootstrap" in response) await applyBootstrap(response.bootstrap);
+  const originalName = current?.name ?? "";
+  
+  const input = document.createElement("input");
+  input.type = "text";
+  input.value = originalName;
+  input.className = "input rename-input";
+  input.style.fontSize = "14px";
+  input.style.fontWeight = "600";
+  input.style.padding = "4px 8px";
+  input.style.margin = "0";
+  
+  let finished = false;
+  
+  const finish = async (save: boolean): Promise<void> => {
+    if (finished) return;
+    finished = true;
+    
+    const newName = input.value.trim();
+    nameEl.textContent = originalName;
+    nameEl.style.display = "";
+    input.remove();
+    
+    if (save && newName && newName !== originalName) {
+      const response = await sendRequest({ type: "RENAME", sessionId, name: newName });
+      if (response.ok && "bootstrap" in response) await applyBootstrap(response.bootstrap);
+    }
+  };
+  
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      void finish(true);
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      void finish(false);
+    }
+  });
+  
+  input.addEventListener("blur", () => void finish(true));
+  
+  nameEl.style.display = "none";
+  nameEl.after(input);
+  input.focus();
+  input.select();
 }
 
 async function removeSession(sessionId: string): Promise<void> {
@@ -291,6 +377,11 @@ searchEl.addEventListener("input", () => {
   paintList();
 });
 
+statusEl.addEventListener("click", () => {
+  if (bootstrap?.folderStatus === "permission-expired") {
+    void reallowFolder();
+  }
+});
 document.getElementById("save-window")?.addEventListener("click", () => void save("SAVE_WINDOW"));
 document.getElementById("save-all")?.addEventListener("click", () => void save("SAVE_ALL"));
 document.getElementById("pick-folder")?.addEventListener("click", () => void chooseFolder());
@@ -322,4 +413,18 @@ importFile.addEventListener("change", async () => {
 void (async () => {
   await sendRequest({ type: "HEALTH_CHECK" });
   await refresh();
+  await tryAutoRestorePermission();
 })();
+
+async function tryAutoRestorePermission(): Promise<void> {
+  if (!bootstrap || bootstrap.folderStatus !== "permission-expired") return;
+  try {
+    const perm = await requestFolderPermission();
+    if (perm === "granted") {
+      const response = await sendRequest({ type: "WRITE_FOLDER_NOW" });
+      if (response.ok && "bootstrap" in response) await applyBootstrap(response.bootstrap);
+    }
+  } catch {
+    // User dismissed or error occurred; banner will be shown
+  }
+}

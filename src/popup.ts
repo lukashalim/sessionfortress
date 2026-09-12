@@ -5,20 +5,23 @@ import { relativeTime } from "./lib/util";
 
 const brand = document.getElementById("brand") as HTMLElement;
 const statusEl = document.getElementById("status") as HTMLElement;
+const storageSummaryEl = document.getElementById("storage-summary") as HTMLElement;
 const banner = document.getElementById("banner") as HTMLElement;
 
 brand.innerHTML = `${MARK_SVG}<h1>Session Fortress</h1>`;
 
 function paint(bootstrap: Bootstrap): void {
   renderPill(statusEl, bootstrap);
+  paintStorageSummary(bootstrap);
   if (bootstrap.folderStatus === "permission-expired") {
     banner.className = "banner bad";
     banner.classList.remove("hidden");
-    banner.textContent = "Click to re-allow folder access in the manager.";
+    const folderName = bootstrap.meta.folderName || "the folder you picked";
+    banner.textContent = `Chrome paused writes to the ${folderName} folder. Sessions are still in this profile (lost on Repair Chrome or a new profile). Open manager to allow the folder again.`;
   } else if (bootstrap.folderStatus === "no-folder") {
     banner.className = "banner warn";
     banner.classList.remove("hidden");
-    banner.textContent = "No off-profile backup. Pick a folder in the manager.";
+    banner.textContent = "No off-profile backup. Pick a folder in the manager (look for session-fortress-latest.json there).";
   } else if (bootstrap.folderStatus === "failed") {
     banner.className = "banner bad";
     banner.classList.remove("hidden");
@@ -34,6 +37,23 @@ function paint(bootstrap: Bootstrap): void {
   } else {
     banner.classList.add("hidden");
   }
+}
+
+function paintStorageSummary(bootstrap: Bootstrap): void {
+  let folderPart = "";
+  if (bootstrap.folderStatus === "no-folder") {
+    folderPart = "No folder mirror";
+  } else if (bootstrap.folderStatus === "permission-expired") {
+    const folderName = bootstrap.meta.folderName || "the chosen folder";
+    folderPart = `Folder mirror paused (${folderName})`;
+  } else if (bootstrap.folderStatus === "ok" && bootstrap.meta.folderName) {
+    folderPart = `Mirrored to the ${bootstrap.meta.folderName} folder on your computer`;
+  } else if (bootstrap.folderStatus === "failed") {
+    const folderName = bootstrap.meta.folderName || "the chosen folder";
+    folderPart = `Folder mirror failed (${folderName})`;
+  }
+  
+  storageSummaryEl.textContent = `Saved in Chrome profile · ${folderPart}`;
 }
 
 async function act(type: "SAVE_WINDOW" | "SAVE_ALL" | "STASH"): Promise<void> {
@@ -52,7 +72,22 @@ document.getElementById("save-window")?.addEventListener("click", () => void act
 document.getElementById("save-all")?.addEventListener("click", () => void act("SAVE_ALL"));
 document.getElementById("stash")?.addEventListener("click", () => void act("STASH"));
 document.getElementById("open-manager")?.addEventListener("click", () => {
-  void sendRequest({ type: "OPEN_MANAGER" });
+  void (async () => {
+    try {
+      const url = chrome.runtime.getURL("manager.html");
+      const existing = await chrome.tabs.query({ url, currentWindow: false });
+      if (existing[0]?.id != null) {
+        await chrome.tabs.update(existing[0].id, { active: true });
+        if (existing[0].windowId != null) {
+          await chrome.windows.update(existing[0].windowId, { focused: true });
+        }
+      } else {
+        await chrome.tabs.create({ url, active: true });
+      }
+    } catch (error) {
+      await chrome.tabs.create({ url: chrome.runtime.getURL("manager.html"), active: true });
+    }
+  })();
 });
 
 void (async () => {
