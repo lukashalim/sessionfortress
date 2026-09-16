@@ -2,15 +2,8 @@ export const APP_ID = "session-fortress" as const;
 export const SCHEMA_VERSION = 1 as const;
 export const SUPPORT_EMAIL = "lukas.halim@gmail.com";
 
-export const LATEST_FILENAME = "session-fortress-latest.json";
-export const TMP_FILENAME = "session-fortress-latest.json.tmp";
-export const DATED_PREFIX = "session-fortress-";
-
-export const DEFAULT_RETENTION = 20;
-export const MIN_RETENTION = 5;
-export const MAX_RETENTION = 50;
-
-export const FOLDER_WRITE_DEBOUNCE_MS = 800;
+export const EXPORT_REMINDER_MS = 7 * 24 * 60 * 60 * 1000;
+export const REPLICA_WRITE_DEBOUNCE_MS = 800;
 export const RESTORE_BATCH_SIZE = 10;
 export const RESTORE_BATCH_YIELD_MS = 40;
 export const LARGE_SESSION_TAB_THRESHOLD = 50;
@@ -19,8 +12,6 @@ export const STORAGE_SESSIONS = "sessions";
 export const STORAGE_META = "vaultMeta";
 export const STORAGE_SETTINGS = "settings";
 export const STORAGE_RECOVERY = "recovery";
-export const STORAGE_PENDING_BACKUP = "pendingBackup";
-export const STORAGE_ALLOW_EMPTY_MIRROR = "allowEmptyMirror";
 export const STORAGE_LAST_ADD = "lastAddRestore";
 
 export type TabGroupColor =
@@ -78,25 +69,21 @@ export type Session = {
 
 export type VaultMeta = {
   schemaVersion: typeof SCHEMA_VERSION;
-  lastBackupAt: number | null;
-  lastBackupOk: boolean;
-  lastBackupError: string | null;
-  backupGeneration: number;
-  folderName: string | null;
+  lastSavedAt: number | null;
+  lastExportAt: number | null;
+  lastExportReminderAt: number | null;
+  lastBackupAt?: number | null;
+  lastBackupOk?: boolean;
+  lastBackupError?: string | null;
+  backupGeneration?: number;
+  folderName?: string | null;
 };
 
 export type Settings = {
-  retention: number;
   startupHealthCheck: boolean;
   includeIncognitoInBackup: boolean;
+  remindExportWeekly: boolean;
 };
-
-export type FolderStatus =
-  | "ok"
-  | "no-folder"
-  | "permission-expired"
-  | "failed"
-  | "unknown";
 
 export type RecoveryState = {
   active: boolean;
@@ -108,8 +95,6 @@ export type RecoveryState = {
 };
 
 export type RestoreMode = "new" | "replace" | "add";
-
-export type ImportStrategy = "merge" | "replace";
 
 export type FolderVault = {
   app: typeof APP_ID;
@@ -136,8 +121,8 @@ export type RestoreResult = {
 
 export type ImportSummary = {
   added: number;
-  skippedDuplicateIds: number;
-  replaced: number;
+  skipped: number;
+  renamed: number;
   warnings: string[];
   sourceFormat: "session-fortress" | "session-buddy" | "tab-session-manager" | "unknown";
 };
@@ -153,23 +138,21 @@ export type Bootstrap = {
   meta: VaultMeta;
   settings: Settings;
   recovery: RecoveryState;
-  folderStatus: FolderStatus;
-  lastBackupAgeMs: number | null;
+  exportReminderDue: boolean;
+  lastExportAgeMs: number | null;
 };
 
 export const DEFAULT_SETTINGS: Settings = {
-  retention: DEFAULT_RETENTION,
   startupHealthCheck: true,
   includeIncognitoInBackup: false,
+  remindExportWeekly: true,
 };
 
 export const DEFAULT_META: VaultMeta = {
   schemaVersion: SCHEMA_VERSION,
-  lastBackupAt: null,
-  lastBackupOk: false,
-  lastBackupError: null,
-  backupGeneration: 0,
-  folderName: null,
+  lastSavedAt: null,
+  lastExportAt: null,
+  lastExportReminderAt: null,
 };
 
 export const DEFAULT_RECOVERY: RecoveryState = {

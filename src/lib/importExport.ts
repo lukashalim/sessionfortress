@@ -3,7 +3,6 @@ import {
   SCHEMA_VERSION,
   type FolderVault,
   type GroupRecord,
-  type ImportStrategy,
   type ImportSummary,
   type Session,
   type TabRecord,
@@ -238,39 +237,45 @@ export function parseImportedJson(text: string): {
   };
 }
 
+export function uniqueImportedName(name: string, existingLower: Set<string>): string {
+  const base = name.trim() || "Imported session";
+  if (!existingLower.has(base.toLowerCase())) return base;
+  const suffixed = `${base} (imported)`;
+  if (!existingLower.has(suffixed.toLowerCase())) return suffixed;
+  let n = 2;
+  while (existingLower.has(`${base} (imported ${n})`.toLowerCase())) n += 1;
+  return `${base} (imported ${n})`;
+}
+
 export function applyImport(
   existing: Session[],
   incoming: Session[],
-  strategy: ImportStrategy,
 ): ImportSummary & { sessions: Session[] } {
-  if (strategy === "replace") {
-    return {
-      sessions: incoming.map((s) => ({ ...s, source: "imported" as const, id: s.id || crypto.randomUUID() })),
-      added: incoming.length,
-      skippedDuplicateIds: 0,
-      replaced: existing.length,
-      warnings: [],
-      sourceFormat: "session-fortress",
-    };
-  }
-
-  const ids = new Set(existing.map((s) => s.id));
+  const names = new Set(existing.map((s) => s.name.toLowerCase()));
   const added: Session[] = [];
-  let skippedDuplicateIds = 0;
+  let skipped = 0;
+  let renamed = 0;
   for (const session of incoming) {
-    const id = session.id || crypto.randomUUID();
-    if (ids.has(id)) {
-      skippedDuplicateIds += 1;
+    if (!isValidSession(session)) {
+      skipped += 1;
       continue;
     }
-    ids.add(id);
-    added.push({ ...session, id, source: "imported" });
+    const name = uniqueImportedName(session.name, names);
+    if (name !== session.name) renamed += 1;
+    names.add(name.toLowerCase());
+    added.push({
+      ...session,
+      id: crypto.randomUUID(),
+      name,
+      source: "imported",
+      updatedAt: Date.now(),
+    });
   }
   return {
     sessions: [...added, ...existing],
     added: added.length,
-    skippedDuplicateIds,
-    replaced: 0,
+    skipped,
+    renamed,
     warnings: [],
     sourceFormat: "session-fortress",
   };

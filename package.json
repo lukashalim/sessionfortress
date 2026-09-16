@@ -1,8 +1,8 @@
 {
   "name": "session-fortress",
-  "version": "0.1.3",
+  "version": "0.2.0",
   "private": true,
-  "description": "Save Chrome windows and Tab Groups. Mirror every save to a folder you control.",
+  "description": "Save Chrome windows and Tab Groups in this browser. Export JSON to survive a reset or a new computer.",
   "type": "module",
   "scripts": {
     "dev": "vite build --watch",

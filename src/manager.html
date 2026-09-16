@@ -11,20 +11,19 @@
       <input class="input" id="search" type="search" placeholder="Search name, title, or URL" />
       <div class="row">
         <div id="status" class="pill"><span class="dot"></span><span>Checking</span></div>
-        <button class="btn" id="pick-folder" type="button">Backup folder</button>
         <button class="btn btn-ghost" id="open-options" type="button">Settings</button>
       </div>
     </header>
     <main class="main stack">
       <div id="recovery" class="banner bad hidden"></div>
-      <div id="folder-banner" class="banner warn hidden"></div>
+      <div id="reminder" class="banner warn hidden"></div>
       <div class="spread">
         <h2>Sessions</h2>
         <div class="row">
           <button class="btn" id="save-window" type="button">Save this window</button>
           <button class="btn" id="save-all" type="button">Save all windows</button>
           <button class="btn" id="import" type="button">Import JSON</button>
-          <button class="btn" id="export-all" type="button">Download JSON</button>
+          <button class="btn btn-primary" id="export-all" type="button">Export JSON</button>
           <input id="import-file" class="hidden" type="file" accept="application/json,.json" />
         </div>
       </div>

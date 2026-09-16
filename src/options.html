@@ -8,31 +8,31 @@
   <body>
     <div class="options">
       <div class="brand" id="brand"></div>
-      <p class="sub">Local-first session backup. The folder you pick is the copy that survives a Chrome profile wipe.</p>
+      <p class="sub">Sessions are saved in this browser. Export JSON to survive a reset or a new computer.</p>
 
-      <h2>Backup folder</h2>
-      <div id="folder-status" class="banner warn"></div>
+      <h2>Export</h2>
+      <div id="export-status" class="banner"></div>
       <div class="row" style="margin: 12px 0 20px">
-        <button class="btn btn-primary" id="pick-folder" type="button">Choose backup folder</button>
-        <button class="btn" id="reallow" type="button">Re-allow access</button>
-        <button class="btn" id="clear-folder" type="button">Stop using folder</button>
+        <button class="btn btn-primary" id="export-all" type="button">Export JSON</button>
+        <button class="btn" id="import" type="button">Import JSON</button>
+        <input id="import-file" class="hidden" type="file" accept="application/json,.json" />
       </div>
-
-      <h2>Retention</h2>
       <div class="field">
-        <label for="retention">Keep last N dated mirror files (5–50). latest.json is never pruned.</label>
-        <input class="input" id="retention" type="number" min="5" max="50" />
+        <label class="row">
+          <input id="remind" type="checkbox" />
+          <span>Remind me to export weekly</span>
+        </label>
+        <label class="row">
+          <input id="incognito" type="checkbox" />
+          <span>Include incognito URLs in JSON exports (off by default)</span>
+        </label>
       </div>
 
       <h2>Startup</h2>
       <div class="field">
         <label class="row">
           <input id="health" type="checkbox" />
-          <span>Run a health check when Chrome starts</span>
-        </label>
-        <label class="row">
-          <input id="incognito" type="checkbox" />
-          <span>Include incognito URLs in the folder mirror (off by default)</span>
+          <span>Run a health check when Chrome starts (refill from the local replica if storage looks empty)</span>
         </label>
       </div>
 
@@ -49,17 +49,17 @@
       <h2>Permissions</h2>
       <ul>
         <li>Tabs &amp; Tab Groups — to read and restore sessions</li>
-        <li>Storage — to keep the session list</li>
-        <li>Folder access — only the backup folder you choose, and only after you pick it</li>
+        <li>Storage — to keep the session list in this browser</li>
+        <li>Downloads — only when you export JSON</li>
         <li>We don’t read page content. We don’t sell data. Local-first.</li>
       </ul>
 
       <h2>Privacy</h2>
       <ul>
         <li>Local-first; sessions stay on this device</li>
-        <li>Backup folder only with a user gesture</li>
-        <li>No URL analytics and no network requests</li>
+        <li>No cloud sync, accounts, or network requests</li>
         <li>Export and delete are local</li>
+        <li>Older folder-mirror JSON files still import</li>
         <li>Contact: <span id="support"></span></li>
       </ul>
 

@@ -56,23 +56,11 @@ export function shouldCaptureUrl(url: string | undefined): boolean {
   return false;
 }
 
-export function clampRetention(n: number): number {
-  if (!Number.isFinite(n)) return 20;
-  return Math.min(50, Math.max(5, Math.round(n)));
-}
-
-export function datedBackupFilename(at: Date = new Date()): string {
+export function exportFilename(at: Date = new Date()): string {
   const y = at.getFullYear();
   const m = String(at.getMonth() + 1).padStart(2, "0");
   const d = String(at.getDate()).padStart(2, "0");
-  const hh = String(at.getHours()).padStart(2, "0");
-  const mm = String(at.getMinutes()).padStart(2, "0");
-  const ss = String(at.getSeconds()).padStart(2, "0");
-  return `session-fortress-${y}-${m}-${d}T${hh}${mm}${ss}.json`;
-}
-
-export function isDatedBackupName(name: string): boolean {
-  return /^session-fortress-\d{4}-\d{2}-\d{2}T\d{6}\.json$/.test(name);
+  return `session-fortress-${y}-${m}-${d}.json`;
 }
 
 export function defaultSessionName(windows: WindowRecord[], source: string, at: Date): string {

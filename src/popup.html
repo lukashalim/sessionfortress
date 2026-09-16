@@ -11,10 +11,14 @@
         <div class="brand" id="brand"></div>
         <div id="status" class="pill"><span class="dot"></span><span>Checking</span></div>
       </div>
+      <p class="sub">Sessions are saved in this browser. Export JSON to survive a reset or a new computer.</p>
       <div id="banner" class="banner warn hidden"></div>
       <button class="btn btn-primary btn-block" id="save-window" type="button">Save this window</button>
       <button class="btn btn-block" id="save-all" type="button">Save all windows</button>
       <button class="btn btn-block" id="stash" type="button">Save &amp; close (stash)</button>
+      <button class="btn btn-block" id="export-all" type="button">Export JSON</button>
+      <button class="btn btn-block" id="import" type="button">Import JSON</button>
+      <input id="import-file" class="hidden" type="file" accept="application/json,.json" />
       <button class="btn btn-ghost btn-block" id="open-manager" type="button">Open manager</button>
     </div>
     <script type="module" src="./popup.ts"></script>

@@ -59,6 +59,11 @@ a:hover {
   min-height: 220px;
 }
 
+.banner strong {
+  color: var(--text);
+  font-weight: 650;
+}
+
 .wrap {
   padding: 12px;
 }

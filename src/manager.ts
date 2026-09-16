@@ -1,18 +1,18 @@
-import { downloadJson, pickBackupFolder, readLatestVault, requestFolderPermission } from "./lib/folder";
+import { downloadJsonFile } from "./lib/download";
 import { sendRequest, toastSkipped } from "./lib/messages";
 import type { Bootstrap, RestoreMode, Session } from "./lib/types";
-import { escapeHtml, MARK_SVG, renderPill, showToast } from "./lib/ui";
+import { escapeHtml, importToast, MARK_SVG, renderPill, showToast } from "./lib/ui";
 import { matchesQuery, relativeTime, sessionGroupCount, sessionTabCount } from "./lib/util";
 
 const brand = document.getElementById("brand") as HTMLElement;
 const statusEl = document.getElementById("status") as HTMLElement;
 const recoveryEl = document.getElementById("recovery") as HTMLElement;
-const folderBanner = document.getElementById("folder-banner") as HTMLElement;
+const reminderEl = document.getElementById("reminder") as HTMLElement;
 const listEl = document.getElementById("list") as HTMLElement;
 const searchEl = document.getElementById("search") as HTMLInputElement;
 const importFile = document.getElementById("import-file") as HTMLInputElement;
 
-brand.innerHTML = `${MARK_SVG}<div><h1>Session Fortress</h1><div class="sub">Named sessions that survive a Chrome wipe</div></div>`;
+brand.innerHTML = `${MARK_SVG}<div><h1>Session Fortress</h1><div class="sub">Named sessions saved in this browser</div></div>`;
 
 let bootstrap: Bootstrap | null = null;
 let query = "";
@@ -25,61 +25,43 @@ function paint(): void {
   if (!bootstrap) return;
   renderPill(statusEl, bootstrap);
   paintRecovery();
-  paintFolderBanner();
+  paintReminder();
   paintList();
 }
 
 function paintRecovery(): void {
   if (!bootstrap) return;
   const rec = bootstrap.recovery;
-  if (!rec.active || rec.dismissed) {
+  if (!rec.active || rec.dismissed || rec.reason !== "replica-restored") {
     recoveryEl.classList.add("hidden");
     return;
   }
   recoveryEl.classList.remove("hidden");
-  const when = rec.folderExportedAt ? relativeTime(rec.folderExportedAt) : "earlier";
-  const lead =
-    rec.reason === "replica-restored"
-      ? `Restored ${rec.replicaRestoredCount} session${rec.replicaRestoredCount === 1 ? "" : "s"} from the local replica. A folder copy from ${when} is also available.`
-      : `Local data looks empty or damaged. A backup folder copy from ${when} is available.`;
+  recoveryEl.className = "banner warn";
   recoveryEl.innerHTML = `
     <div class="stack">
-      <div>${escapeHtml(lead)}</div>
+      <div>Restored ${rec.replicaRestoredCount} session${rec.replicaRestoredCount === 1 ? "" : "s"} from the local replica. Export JSON if you want a copy that survives a profile reset.</div>
       <div class="row">
-        <button class="btn btn-primary" id="restore-folder" type="button">Restore from folder</button>
-        <button class="btn" id="download-folder" type="button">Download that file</button>
+        <button class="btn btn-primary" id="recovery-export" type="button">Export JSON</button>
         <button class="btn btn-ghost" id="dismiss-recovery" type="button">Dismiss</button>
       </div>
     </div>`;
-  document.getElementById("restore-folder")?.addEventListener("click", () => void restoreFromFolder());
-  document.getElementById("download-folder")?.addEventListener("click", () => void downloadLatest());
+  document.getElementById("recovery-export")?.addEventListener("click", () => void exportAll());
   document.getElementById("dismiss-recovery")?.addEventListener("click", () => void dismissRecovery());
 }
 
-function paintFolderBanner(): void {
+function paintReminder(): void {
   if (!bootstrap) return;
-  if (bootstrap.folderStatus === "permission-expired") {
-    folderBanner.className = "banner bad";
-    folderBanner.classList.remove("hidden");
-    folderBanner.innerHTML = `<div class="spread"><span>Click to re-allow folder access. Backups are paused until you do.</span><button class="btn btn-primary" id="reallow" type="button">Re-allow folder</button></div>`;
-    document.getElementById("reallow")?.addEventListener("click", () => void reallowFolder());
+  if (!bootstrap.exportReminderDue) {
+    reminderEl.classList.add("hidden");
+    reminderEl.replaceChildren();
     return;
   }
-  if (bootstrap.folderStatus === "no-folder") {
-    folderBanner.className = "banner warn";
-    folderBanner.classList.remove("hidden");
-    folderBanner.innerHTML = `<div class="spread"><span>Pick a backup folder (recommended). Dropbox / Drive / iCloud / Documents all work if that folder is on disk.</span><button class="btn btn-primary" id="pick-now" type="button">Pick folder</button></div>`;
-    document.getElementById("pick-now")?.addEventListener("click", () => void chooseFolder());
-    return;
-  }
-  if (bootstrap.folderStatus === "failed" && bootstrap.meta.lastBackupError) {
-    folderBanner.className = "banner bad";
-    folderBanner.classList.remove("hidden");
-    folderBanner.innerHTML = `<div class="spread"><span>${escapeHtml(bootstrap.meta.lastBackupError)}</span><button class="btn" id="retry-write" type="button">Retry backup</button></div>`;
-    document.getElementById("retry-write")?.addEventListener("click", () => void retryWrite());
-    return;
-  }
-  folderBanner.classList.add("hidden");
+  reminderEl.className = "banner warn";
+  reminderEl.classList.remove("hidden");
+  reminderEl.innerHTML = `<div class="spread"><span>It’s been a week since the last export. Save a JSON copy to survive a reset or a new computer.</span><div class="row"><button class="btn btn-primary" id="remind-export" type="button">Export JSON</button><button class="btn" id="remind-dismiss" type="button">Later</button></div></div>`;
+  document.getElementById("remind-export")?.addEventListener("click", () => void exportAll());
+  document.getElementById("remind-dismiss")?.addEventListener("click", () => void dismissReminder());
 }
 
 function paintList(): void {
@@ -87,7 +69,7 @@ function paintList(): void {
   if (items.length === 0) {
     listEl.innerHTML =
       sessions().length === 0
-        ? `<div class="empty">No sessions yet. Save a window, or pick a backup folder first so a crash can’t wipe you.</div>`
+        ? `<div class="empty">No sessions yet. Save a window. Export JSON to survive a Chrome reset or a new computer.</div>`
         : `<div class="empty">No sessions match that search.</div>`;
     return;
   }
@@ -138,70 +120,26 @@ async function applyBootstrap(next: Bootstrap): Promise<void> {
   paint();
 }
 
-async function chooseFolder(): Promise<void> {
+async function exportAll(): Promise<void> {
+  const response = await sendRequest({ type: "EXPORT_ALL" });
+  if (!response.ok || !("json" in response)) {
+    showToast(response.ok ? "Export failed." : response.error);
+    return;
+  }
   try {
-    const picked = await pickBackupFolder();
-    const response = await sendRequest({ type: "FOLDER_PICKED", folderName: picked.folderName });
-    if (response.ok && "bootstrap" in response) await applyBootstrap(response.bootstrap);
-    showToast(`Backup folder set to ${picked.folderName}.`);
+    await downloadJsonFile(response.filename, response.json);
+    const marked = await sendRequest({ type: "MARK_EXPORTED" });
+    if (marked.ok && "bootstrap" in marked) await applyBootstrap(marked.bootstrap);
+    showToast("Export started.");
   } catch (error) {
-    if (error instanceof DOMException && error.name === "AbortError") return;
-    showToast(error instanceof Error ? error.message : "Folder picker failed.");
+    if (error instanceof Error && /canceled|cancelled/i.test(error.message)) return;
+    showToast(error instanceof Error ? error.message : "Export failed.");
   }
 }
 
-async function reallowFolder(): Promise<void> {
-  const perm = await requestFolderPermission();
-  if (perm === "granted") {
-    const response = await sendRequest({ type: "WRITE_FOLDER_NOW" });
-    if (response.ok && "bootstrap" in response) await applyBootstrap(response.bootstrap);
-    showToast("Folder access restored. Backup written.");
-    return;
-  }
-  if (perm === "missing") {
-    await chooseFolder();
-    return;
-  }
-  showToast("Folder access was not granted.");
-}
-
-async function retryWrite(): Promise<void> {
-  const response = await sendRequest({ type: "WRITE_FOLDER_NOW" });
+async function dismissReminder(): Promise<void> {
+  const response = await sendRequest({ type: "DISMISS_EXPORT_REMINDER" });
   if (response.ok && "bootstrap" in response) await applyBootstrap(response.bootstrap);
-}
-
-async function restoreFromFolder(): Promise<void> {
-  const perm = await requestFolderPermission();
-  if (perm !== "granted") {
-    showToast("Re-allow folder access first.");
-    return;
-  }
-  const latest = await readLatestVault();
-  if (!latest.vault) {
-    showToast(latest.error || "No backup file found.");
-    return;
-  }
-  const response = await sendRequest({ type: "RESTORE_FROM_FOLDER", vault: latest.vault });
-  if (!response.ok) {
-    showToast(response.error);
-    return;
-  }
-  if ("bootstrap" in response) await applyBootstrap(response.bootstrap);
-  showToast("Sessions restored from the backup folder.");
-}
-
-async function downloadLatest(): Promise<void> {
-  const perm = await requestFolderPermission();
-  if (perm !== "granted") {
-    showToast("Re-allow folder access first.");
-    return;
-  }
-  const latest = await readLatestVault();
-  if (!latest.vault) {
-    showToast(latest.error || "No backup file found.");
-    return;
-  }
-  downloadJson("session-fortress-latest.json", `${JSON.stringify(latest.vault, null, 2)}\n`);
 }
 
 async function dismissRecovery(): Promise<void> {
@@ -239,7 +177,16 @@ listEl.addEventListener("click", (event) => {
     }
     if (act === "export") {
       const response = await sendRequest({ type: "EXPORT_ONE", sessionId: id });
-      if (response.ok && "json" in response) downloadJson(response.filename, response.json);
+      if (response.ok && "json" in response) {
+        try {
+          await downloadJsonFile(response.filename, response.json);
+          const marked = await sendRequest({ type: "MARK_EXPORTED" });
+          if (marked.ok && "bootstrap" in marked) await applyBootstrap(marked.bootstrap);
+        } catch (error) {
+          if (error instanceof Error && /canceled|cancelled/i.test(error.message)) return;
+          showToast(error instanceof Error ? error.message : "Export failed.");
+        }
+      }
     }
     if (act === "delete") await removeSession(id);
   })();
@@ -270,10 +217,10 @@ async function rename(sessionId: string): Promise<void> {
   if (!card) return;
   const nameEl = card.querySelector(".session-name") as HTMLElement | null;
   if (!nameEl) return;
-  
+
   const current = sessions().find((s) => s.id === sessionId);
   const originalName = current?.name ?? "";
-  
+
   const input = document.createElement("input");
   input.type = "text";
   input.value = originalName;
@@ -282,19 +229,19 @@ async function rename(sessionId: string): Promise<void> {
   input.style.fontWeight = "600";
   input.style.padding = "4px 8px";
   input.style.margin = "0";
-  
-  const finish = async (save: boolean): Promise<void> => {
+
+  const finish = async (saveChange: boolean): Promise<void> => {
     const newName = input.value.trim();
     nameEl.textContent = originalName;
     nameEl.style.display = "";
     input.remove();
-    
-    if (save && newName && newName !== originalName) {
+
+    if (saveChange && newName && newName !== originalName) {
       const response = await sendRequest({ type: "RENAME", sessionId, name: newName });
       if (response.ok && "bootstrap" in response) await applyBootstrap(response.bootstrap);
     }
   };
-  
+
   input.addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
@@ -304,9 +251,9 @@ async function rename(sessionId: string): Promise<void> {
       void finish(false);
     }
   });
-  
+
   input.addEventListener("blur", () => void finish(true));
-  
+
   nameEl.style.display = "none";
   nameEl.after(input);
   input.focus();
@@ -315,12 +262,7 @@ async function rename(sessionId: string): Promise<void> {
 
 async function removeSession(sessionId: string): Promise<void> {
   const current = sessions().find((s) => s.id === sessionId);
-  const last = sessions().length === 1;
-  const ok = window.confirm(
-    last
-      ? `Delete “${current?.name ?? "this session"}”? This is the last session. Confirming allows one attempt to empty the folder mirror. If that write fails, the on-disk copy is left alone.`
-      : `Delete “${current?.name ?? "this session"}”?`,
-  );
+  const ok = window.confirm(`Delete “${current?.name ?? "this session"}”?`);
   if (!ok) return;
   const response = await sendRequest({ type: "DELETE", sessionId });
   if (response.ok && "bootstrap" in response) await applyBootstrap(response.bootstrap);
@@ -333,30 +275,27 @@ searchEl.addEventListener("input", () => {
 
 document.getElementById("save-window")?.addEventListener("click", () => void save("SAVE_WINDOW"));
 document.getElementById("save-all")?.addEventListener("click", () => void save("SAVE_ALL"));
-document.getElementById("pick-folder")?.addEventListener("click", () => void chooseFolder());
 document.getElementById("open-options")?.addEventListener("click", () => void sendRequest({ type: "OPEN_OPTIONS" }));
-document.getElementById("export-all")?.addEventListener("click", async () => {
-  const response = await sendRequest({ type: "EXPORT_ALL" });
-  if (response.ok && "json" in response) downloadJson(response.filename, response.json);
-});
+document.getElementById("export-all")?.addEventListener("click", () => void exportAll());
 document.getElementById("import")?.addEventListener("click", () => importFile.click());
 importFile.addEventListener("change", async () => {
   const file = importFile.files?.[0];
   importFile.value = "";
   if (!file) return;
-  const json = await file.text();
-  const replace = window.confirm("Replace all sessions with this file?\n\nOK = replace\nCancel = merge (skip duplicate ids)");
-  const response = await sendRequest({ type: "IMPORT", json, strategy: replace ? "replace" : "merge" });
+  let json: string;
+  try {
+    json = await file.text();
+  } catch {
+    showToast("Could not read that file.");
+    return;
+  }
+  const response = await sendRequest({ type: "IMPORT", json });
   if (!response.ok) {
     showToast(response.error);
     return;
   }
   if ("bootstrap" in response) await applyBootstrap(response.bootstrap);
-  if ("import" in response) {
-    const summary = response.import;
-    const warn = summary.warnings[0] ? ` ${summary.warnings[0]}` : "";
-    showToast(`Imported ${summary.added} session${summary.added === 1 ? "" : "s"} from ${summary.sourceFormat}. Skipped ${summary.skippedDuplicateIds} duplicate ids.${warn}`);
-  }
+  if ("import" in response) showToast(importToast(response.import));
 });
 
 void (async () => {
