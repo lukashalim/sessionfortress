@@ -15,13 +15,13 @@ function paint(bootstrap: Bootstrap): void {
   if (bootstrap.recovery.active && !bootstrap.recovery.dismissed && bootstrap.recovery.reason === "replica-restored") {
     banner.className = "banner warn";
     banner.classList.remove("hidden");
-    banner.textContent = `Restored ${bootstrap.recovery.replicaRestoredCount} session${bootstrap.recovery.replicaRestoredCount === 1 ? "" : "s"} from the local replica. Export JSON if you want a copy outside this browser.`;
+    banner.textContent = `Restored ${bootstrap.recovery.replicaRestoredCount} session${bootstrap.recovery.replicaRestoredCount === 1 ? "" : "s"} from a recovery copy in this browser. Export JSON to keep a backup outside Chrome.`;
     return;
   }
   if (bootstrap.exportReminderDue) {
     banner.className = "banner warn";
     banner.classList.remove("hidden");
-    banner.innerHTML = `<div class="stack"><span>It’s been a week since the last export. Save a JSON copy so a reset or new computer can’t wipe you.</span><div class="row"><button class="btn btn-primary" id="remind-export" type="button">Export now</button><button class="btn btn-ghost" id="remind-dismiss" type="button">Later</button></div></div>`;
+    banner.innerHTML = `<div class="stack"><span>It's been a week since your last export. Export JSON to keep a backup if Chrome resets or you move to another computer.</span><div class="row"><button class="btn btn-primary" id="remind-export" type="button">Export now</button><button class="btn btn-ghost" id="remind-dismiss" type="button">Later</button></div></div>`;
     document.getElementById("remind-export")?.addEventListener("click", () => void exportAll());
     document.getElementById("remind-dismiss")?.addEventListener("click", () => void dismissReminder());
     return;
@@ -56,7 +56,7 @@ async function exportAll(): Promise<void> {
     await downloadJsonFile(response.filename, response.json);
     const marked = await sendRequest({ type: "MARK_EXPORTED" });
     if (marked.ok && "bootstrap" in marked) paint(marked.bootstrap);
-    showToast("Export started.");
+    showToast("Export saved.");
   } catch (error) {
     if (error instanceof Error && /canceled|cancelled/i.test(error.message)) return;
     showToast(error instanceof Error ? error.message : "Export failed.");
