@@ -59,6 +59,11 @@ a:hover {
   min-height: 220px;
 }
 
+.banner strong {
+  color: var(--text);
+  font-weight: 650;
+}
+
 .wrap {
   padding: 12px;
 }
@@ -148,6 +153,34 @@ h2 {
 
 .btn-primary:hover {
   filter: brightness(1.05);
+}
+
+.btn-gold {
+  background: var(--warn);
+  border-color: #9a7f3a;
+  color: #16120c;
+  font-weight: 650;
+}
+
+.btn-gold:hover {
+  filter: brightness(1.05);
+}
+
+.btn-sm {
+  padding: 6px 8px;
+  font-size: 12px;
+  min-height: 28px;
+}
+
+.btn-secondary {
+  background: var(--bg-2);
+  border-color: var(--border);
+  color: var(--muted);
+}
+
+.btn-secondary:hover {
+  background: var(--surface);
+  color: var(--text);
 }
 
 .btn-danger {
@@ -310,6 +343,12 @@ h2 {
 .chip.cyan { background: #27555a; }
 .chip.orange { background: #6a4324; }
 
+.chip-imported {
+  background: var(--bg-2);
+  color: var(--muted);
+  font-weight: 500;
+}
+
 .empty {
   padding: 48px 20px;
   text-align: center;
@@ -371,6 +410,13 @@ label {
 
 .hidden {
   display: none !important;
+}
+
+.secondary-actions {
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+  margin-top: 4px;
+  justify-content: center;
 }
 
 @media (max-width: 800px) {

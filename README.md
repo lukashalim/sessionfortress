@@ -1,11 +1,11 @@
 # Session Fortress
 
-Save Chrome windows and Tab Groups. Mirror every save to a folder you control so a crash, update, or “Repair Chrome” cannot wipe you.
+Save Chrome windows and Tab Groups. Sessions live in this browser. Export JSON when you want a copy that survives a profile reset or a new computer.
 
 - Privacy policy: https://lukashalim.github.io/sessionfortress/
 - Contact: lukas.halim@gmail.com
 
-This is not a tab organizer. The product is a **hot working copy** plus an **off-profile folder mirror**. If the folder mirror is missing, the extension is unfinished.
+This is not a tab organizer. The working copy is in Chrome’s extension storage. A JSON export you save yourself is the copy that outlives this profile.
 
 ## Load unpacked
 
@@ -14,51 +14,41 @@ This is not a tab organizer. The product is a **hot working copy** plus an **off
 3. Open `chrome://extensions`, enable Developer mode.
 4. Load unpacked → select the `dist/` directory (not the repo root).
 5. Pin Session Fortress. Open the manager (toolbar, or Alt+Shift+M).
-6. Pick a backup folder. `Documents/SessionFortress` is a good default. Dropbox, Drive desktop, and iCloud folders work if they are real folders on disk.
 
-## How to test folder restore (the v1 bar)
+## How to test
 
-A reviewer should be able to do this:
-
-1. Install unpacked. Pick `Documents/SessionFortress`.
-2. Make two named sessions that include Tab Groups (names + colors), pins, and more than one window.
-3. Confirm `session-fortress-latest.json` and a dated `session-fortress-YYYY-MM-DDTHHMMSS.json` appear in that folder.
-4. In the service worker console (`chrome://extensions` → Service worker → Inspect): `chrome.storage.local.clear()`. Reload. The IndexedDB hot replica should refill the list (you will see a recovery notice).
-5. To force the **folder** path: also run `indexedDB.deleteDatabase("session-fortress-hot")`, then reload. The folder handle stays in `session-fortress-folder`. Click **Restore from folder**.
-6. Groups, pins, and URLs come back.
-
-A true profile reset also drops the folder handle. Pick the same folder again, then restore. Session Fortress will not overwrite a non-empty `latest.json` with an empty vault.
+1. Save a window with Tab Groups, pins, and more than one tab.
+2. Reload the extension. The session is still in the list.
+3. **Export JSON** — Chrome’s save dialog. Filename like `session-fortress-YYYY-MM-DD.json`.
+4. Delete the session (or imagine a wiped profile). **Import JSON**. It is added as a new session (new id). If the name already exists, it gets ` (imported)`.
+5. Restore → groups, pins, and URLs come back.
 
 Related checks:
 
-- Revoke folder permission in `chrome://settings/content/filesystem` (or site settings for the extension origin). The next save must show **permission expired**, badge `!`, and a banner. Click re-allow; write succeeds.
-- Delete the last session only after confirm. An empty vault must not overwrite a non-empty `latest.json` unless that confirm happened.
-- Save & close (stash) on the last window opens the manager first so Chrome does not quit with nowhere to stand. Stash waits for a folder write attempt (or a no-folder / permission-expired return) before closing the window. Rename and ordinary saves still debounce. After stash, last-delete, or restore, `chrome.alarms.getAll()` should have no leftover `critical-keepalive` alarms.
-- Restore 200 tabs should batch (10 at a time). At ≥50 tabs, Chrome discards (unloads from memory) tabs after create so the restore does not freeze the browser for 30s — every tab is still restored.
-- Incognito windows are captured into the hot store if the extension is allowed in incognito. Restore skips them by default. Folder mirror and Download JSON omit them unless Settings includes incognito in backups. Save toasts do not claim incognito was skipped on capture.
+- Saves must not wait on a folder or a download. Capture writes `chrome.storage.local` immediately; the IndexedDB replica is debounced.
+- Import of a broken file shows a clear error. Valid files never silently replace the existing list.
+- Settings: weekly export reminder, include incognito in exports, startup health check (refill from the local replica if storage looks empty).
+- Older `session-fortress-latest.json` folder-mirror files still import.
+- Restore 200 tabs should batch (10 at a time). At ≥50 tabs, Chrome discards tabs after create so the restore does not freeze the browser.
 
 ## Threat model
 
-| Failure | Hot store (`chrome.storage` + IndexedDB in the profile) | Folder mirror (Documents / Dropbox / Drive / iCloud) |
+| Failure | Hot store (`chrome.storage` + IndexedDB replica in the profile) | JSON export you saved |
 | --- | --- | --- |
 | Extension crash, Chrome restart | Survives | Survives |
 | `chrome.storage` glitch | IndexedDB replica can refill the list | Survives |
-| Profile reset, “Repair Chrome”, extension storage clear | Gone | **This is what the product is for** |
-| Disk wipe, ransomware, you deleted the folder | May still be in the profile | Gone — keep a JSON export elsewhere if that matters |
-| Both profile and folder gone | Gone | Gone |
-
-A true Chrome profile reset also destroys IndexedDB, including the stored folder handle. The JSON files on disk survive. Pick the same folder again (Chrome remembers the last one when `id` is `session-fortress-backup`), then **Restore from folder**. Session Fortress will not overwrite a non-empty `latest.json` with an empty hot store.
+| Profile reset, “Repair Chrome”, extension storage clear | Gone | **This is what Export is for** |
+| You never exported, and the profile is gone | Gone | Gone |
 
 ## Permissions
 
 - **Tabs & Tab Groups** — read and restore sessions (title, URL, pin, group name/color/collapsed). No page content.
 - **Windows** — capture bounds and restore windows.
-- **Storage / unlimitedStorage** — the hot session list.
-- **Alarms** — finish a pending folder write if the worker slept.
-- **Offscreen** — write JSON into the chosen folder from the background.
-- **Folder access** — File System Access API, only after you pick a folder, only that folder. No extra manifest host permission.
+- **Storage / unlimitedStorage** — the session list.
+- **Alarms** — keep long restores/stashes alive if the worker slept.
+- **Downloads** — only when you export JSON. You pick the location each time.
 
-No `<all_urls>`, history, webNavigation, analytics, or network.
+No `<all_urls>`, history, webNavigation, analytics, network, or live folder access.
 
 ## Keyboard shortcuts
 
@@ -73,26 +63,22 @@ Rebind at `chrome://extensions/shortcuts`.
 
 **Headline:** Don’t let a Chrome crash wipe your tabs.
 
-**Short description:** Save Chrome windows and Tab Groups. Mirror every save to a folder you control so crashes can’t wipe you.
+**Short description:** Save Chrome windows and Tab Groups in this browser. Export JSON so a reset or a new computer cannot wipe you.
 
 **Full description:**
 
-Session Fortress saves Chrome windows and Tab Groups so you can restore them after a crash, restart, or messy day — without trusting a single fragile database inside Chrome’s profile.
+Session Fortress saves Chrome windows and Tab Groups so you can restore them after a crash, restart, or messy day.
 
-Browser session tools store everything in the profile. That store vanishes after a crash, update, “Repair Chrome”, or profile reset. Session Fortress keeps a hot working copy for speed and mirrors every save to a folder you choose (Documents, Dropbox, Drive desktop, iCloud). If the hot store looks empty or corrupt, restore from that mirror in one click.
+Sessions stay on this device, in this Chrome profile. Export JSON when you want a copy that survives “Repair Chrome”, a profile reset, or moving to another machine. Import that file to get the sessions back — they are added as new, never silently overwritten.
 
-Power users with dozens or hundreds of tabs, multiple windows, and named colored Tab Groups. If Session Buddy, OneTab, or Chrome’s own restore has burned you, this is the backup those tools skipped.
+Power users with dozens or hundreds of tabs, multiple windows, and named colored Tab Groups.
 
-What v1 does: named sessions, Tab Group fidelity on restore, save & close (stash), import/export JSON, and an off-profile folder mirror on day one.
+What it does: named sessions, Tab Group fidelity on restore, save & close (stash), JSON export/import.
 
-What v1 does not do: accounts, cloud sync, AI grouping, new-tab takeover, or a paywall.
+What it does not do: accounts, cloud sync, AI grouping, new-tab takeover, a paywall, or a live backup folder that Chrome keeps revoking.
 
 Privacy: https://lukashalim.github.io/sessionfortress/
 Contact: lukas.halim@gmail.com
-
-## Manual test matrix
-
-See the prompt checklist. Automate what you can with `npm test` (import parse + filename helpers). The restore and folder permission paths require Chrome.
 
 ## Development
 

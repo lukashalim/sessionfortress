@@ -1,10 +1,8 @@
 import type { FolderVault } from "./types";
 
 const REPLICA_DB = "session-fortress-hot";
-const FOLDER_DB = "session-fortress-folder";
 const STORE = "kv";
 const REPLICA_KEY = "replica";
-const HANDLE_KEY = "dirHandle";
 
 function openDb(name: string): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -42,35 +40,10 @@ async function idbSet<T>(dbName: string, key: string, value: T): Promise<void> {
   });
 }
 
-async function idbDelete(dbName: string, key: string): Promise<void> {
-  const db = await openDb(dbName);
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE, "readwrite");
-    tx.objectStore(STORE).delete(key);
-    tx.oncomplete = () => {
-      db.close();
-      resolve();
-    };
-    tx.onerror = () => reject(tx.error ?? new Error("IndexedDB delete failed"));
-  });
-}
-
 export async function saveReplica(vault: FolderVault): Promise<void> {
   await idbSet(REPLICA_DB, REPLICA_KEY, vault);
 }
 
 export async function loadReplica(): Promise<FolderVault | undefined> {
   return idbGet<FolderVault>(REPLICA_DB, REPLICA_KEY);
-}
-
-export async function saveDirectoryHandle(handle: FileSystemDirectoryHandle): Promise<void> {
-  await idbSet(FOLDER_DB, HANDLE_KEY, handle);
-}
-
-export async function loadDirectoryHandle(): Promise<FileSystemDirectoryHandle | undefined> {
-  return idbGet<FileSystemDirectoryHandle>(FOLDER_DB, HANDLE_KEY);
-}
-
-export async function clearDirectoryHandle(): Promise<void> {
-  await idbDelete(FOLDER_DB, HANDLE_KEY);
 }

@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Session Fortress",
-  "version": "0.1.1",
-  "description": "Save windows and Tab Groups. Mirror every save to a folder you control so Chrome crashes cannot wipe you.",
+  "version": "0.2.1",
+  "description": "Save Chrome windows and Tab Groups in this browser. Export JSON to survive a reset or a new computer.",
   "minimum_chrome_version": "120",
   "action": {
     "default_popup": "popup.html",
@@ -32,7 +32,7 @@
     "storage",
     "unlimitedStorage",
     "alarms",
-    "offscreen",
+    "downloads",
     "commands"
   ],
   "commands": {

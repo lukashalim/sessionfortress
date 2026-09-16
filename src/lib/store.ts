@@ -4,11 +4,10 @@ import {
   DEFAULT_META,
   DEFAULT_RECOVERY,
   DEFAULT_SETTINGS,
+  REPLICA_WRITE_DEBOUNCE_MS,
   SCHEMA_VERSION,
-  STORAGE_ALLOW_EMPTY_MIRROR,
   STORAGE_LAST_ADD,
   STORAGE_META,
-  STORAGE_PENDING_BACKUP,
   STORAGE_RECOVERY,
   STORAGE_SESSIONS,
   STORAGE_SETTINGS,
@@ -19,31 +18,32 @@ import {
   type Settings,
   type VaultMeta,
 } from "./types";
-import { clampRetention, isValidSession, sanitizeSessionsForMirror } from "./util";
+import { isValidSession } from "./util";
 
 interface StorageShape {
   [STORAGE_SESSIONS]?: Session[];
   [STORAGE_META]?: VaultMeta;
   [STORAGE_SETTINGS]?: Settings;
   [STORAGE_RECOVERY]?: RecoveryState;
-  [STORAGE_PENDING_BACKUP]?: boolean;
-  [STORAGE_ALLOW_EMPTY_MIRROR]?: boolean;
   [STORAGE_LAST_ADD]?: LastAddRestore | null;
 }
 
 function normalizeSettings(raw: Settings | undefined): Settings {
   const merged = { ...DEFAULT_SETTINGS, ...raw };
-  merged.retention = clampRetention(merged.retention);
-  merged.startupHealthCheck = Boolean(merged.startupHealthCheck);
-  merged.includeIncognitoInBackup = Boolean(merged.includeIncognitoInBackup);
-  return merged;
+  return {
+    startupHealthCheck: Boolean(merged.startupHealthCheck),
+    includeIncognitoInBackup: Boolean(merged.includeIncognitoInBackup),
+    remindExportWeekly: merged.remindExportWeekly !== false,
+  };
 }
 
 function normalizeMeta(raw: VaultMeta | undefined): VaultMeta {
+  const merged = { ...DEFAULT_META, ...raw, schemaVersion: SCHEMA_VERSION };
   return {
-    ...DEFAULT_META,
-    ...raw,
     schemaVersion: SCHEMA_VERSION,
+    lastSavedAt: merged.lastSavedAt ?? merged.lastBackupAt ?? null,
+    lastExportAt: merged.lastExportAt ?? null,
+    lastExportReminderAt: merged.lastExportReminderAt ?? null,
   };
 }
 
@@ -58,8 +58,6 @@ export async function loadAll(): Promise<{
   meta: VaultMeta;
   settings: Settings;
   recovery: RecoveryState;
-  pendingBackup: boolean;
-  allowEmptyMirror: boolean;
   lastAdd: LastAddRestore | null;
   storageEmpty: boolean;
   storageCorrupt: boolean;
@@ -69,8 +67,6 @@ export async function loadAll(): Promise<{
     STORAGE_META,
     STORAGE_SETTINGS,
     STORAGE_RECOVERY,
-    STORAGE_PENDING_BACKUP,
-    STORAGE_ALLOW_EMPTY_MIRROR,
     STORAGE_LAST_ADD,
   ])) as StorageShape;
 
@@ -85,27 +81,45 @@ export async function loadAll(): Promise<{
     meta: normalizeMeta(data[STORAGE_META]),
     settings: normalizeSettings(data[STORAGE_SETTINGS]),
     recovery: { ...DEFAULT_RECOVERY, ...data[STORAGE_RECOVERY] },
-    pendingBackup: Boolean(data[STORAGE_PENDING_BACKUP]),
-    allowEmptyMirror: Boolean(data[STORAGE_ALLOW_EMPTY_MIRROR]),
     lastAdd: data[STORAGE_LAST_ADD] ?? null,
     storageEmpty,
     storageCorrupt,
   };
 }
 
+let replicaTimer: ReturnType<typeof setTimeout> | null = null;
+let replicaQueued: { sessions: Session[]; meta: VaultMeta } | null = null;
+
+function scheduleReplicaWrite(sessions: Session[], meta: VaultMeta): void {
+  replicaQueued = { sessions, meta };
+  if (replicaTimer) clearTimeout(replicaTimer);
+  replicaTimer = setTimeout(() => {
+    replicaTimer = null;
+    const queued = replicaQueued;
+    replicaQueued = null;
+    if (!queued) return;
+    void writeReplica(queued.sessions, queued.meta);
+  }, REPLICA_WRITE_DEBOUNCE_MS);
+}
+
 export async function saveSessions(sessions: Session[], metaPatch?: Partial<VaultMeta>): Promise<VaultMeta> {
   const current = await loadAll();
-  const meta: VaultMeta = { ...current.meta, ...metaPatch };
+  const meta: VaultMeta = {
+    ...current.meta,
+    ...metaPatch,
+    lastSavedAt: Date.now(),
+    schemaVersion: SCHEMA_VERSION,
+  };
   await chrome.storage.local.set({
     [STORAGE_SESSIONS]: sessions,
     [STORAGE_META]: meta,
   });
-  await writeReplica(sessions, meta);
+  scheduleReplicaWrite(sessions, meta);
   return meta;
 }
 
 export async function saveMeta(meta: VaultMeta): Promise<void> {
-  await chrome.storage.local.set({ [STORAGE_META]: meta });
+  await chrome.storage.local.set({ [STORAGE_META]: normalizeMeta(meta) });
 }
 
 export async function saveSettings(settings: Settings): Promise<void> {
@@ -114,14 +128,6 @@ export async function saveSettings(settings: Settings): Promise<void> {
 
 export async function saveRecovery(recovery: RecoveryState): Promise<void> {
   await chrome.storage.local.set({ [STORAGE_RECOVERY]: recovery });
-}
-
-export async function setPendingBackup(pending: boolean): Promise<void> {
-  await chrome.storage.local.set({ [STORAGE_PENDING_BACKUP]: pending });
-}
-
-export async function setAllowEmptyMirror(allow: boolean): Promise<void> {
-  await chrome.storage.local.set({ [STORAGE_ALLOW_EMPTY_MIRROR]: allow });
 }
 
 export async function saveLastAdd(lastAdd: LastAddRestore | null): Promise<void> {
@@ -140,20 +146,6 @@ export async function writeReplica(sessions: Session[], meta: VaultMeta): Promis
   return replica;
 }
 
-export async function buildFolderVault(
-  sessions: Session[],
-  meta: VaultMeta,
-  settings: Settings,
-): Promise<FolderVault> {
-  return {
-    app: APP_ID,
-    schemaVersion: SCHEMA_VERSION,
-    exportedAt: Date.now(),
-    sessions: sanitizeSessionsForMirror(sessions, settings.includeIncognitoInBackup),
-    meta: { ...meta, schemaVersion: SCHEMA_VERSION },
-  };
-}
-
 export async function restoreFromReplicaIfNeeded(): Promise<{
   restored: boolean;
   sessions: Session[];
@@ -167,7 +159,7 @@ export async function restoreFromReplicaIfNeeded(): Promise<{
   if (replicaSessions.length === 0) {
     return { restored: false, sessions: current.sessions };
   }
-  const meta = replica?.meta ? { ...DEFAULT_META, ...replica.meta } : current.meta;
+  const meta = replica?.meta ? normalizeMeta(replica.meta) : current.meta;
   await chrome.storage.local.set({
     [STORAGE_SESSIONS]: replicaSessions,
     [STORAGE_META]: meta,

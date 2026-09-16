@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { nextRecoveryState } from "../src/lib/recovery";
-import { exportSessionJson, exportVaultJson, parseImportedJson } from "../src/lib/importExport";
+import { applyImport, exportSessionJson, exportVaultJson, parseImportedJson, uniqueImportedName } from "../src/lib/importExport";
 import {
   applyKeepaliveBegin,
   applyKeepaliveEnd,
@@ -8,20 +8,10 @@ import {
   KEEPALIVE_PERIODIC,
   KEEPALIVE_SOON,
 } from "../src/lib/keepalive";
-import {
-  computeAllowEmptyWrite,
-  nextAllowEmptyMirrorAfterAttempt,
-  shouldRefuseEmptyOverwrite,
-  vaultHasRestoreableContent,
-} from "../src/lib/mirrorGuard";
+import { isExportReminderDue } from "../src/lib/reminder";
 import { isProtectedUiUrl, windowCreateExtras, windowStateAfterCreate } from "../src/lib/restore";
-import { DEFAULT_META, DEFAULT_RECOVERY, type Session, type WindowRecord } from "../src/lib/types";
-import {
-  datedBackupFilename,
-  isDatedBackupName,
-  isSkippableSystemUrl,
-  sanitizeSessionsForMirror,
-} from "../src/lib/util";
+import { DEFAULT_META, DEFAULT_RECOVERY, DEFAULT_SETTINGS, type Session, type WindowRecord } from "../src/lib/types";
+import { exportFilename, isSkippableSystemUrl, sanitizeSessionsForMirror } from "../src/lib/util";
 
 function windowRecord(partial: Partial<WindowRecord> & Pick<WindowRecord, "incognito" | "tabs">): WindowRecord {
   return {
@@ -52,9 +42,7 @@ function sessionRecord(partial: Partial<Session> & Pick<Session, "windows">): Se
 export function run(): void {
   assert.equal(isSkippableSystemUrl("chrome://settings"), true);
   assert.equal(isSkippableSystemUrl("https://example.com"), false);
-  assert.equal(isDatedBackupName("session-fortress-2026-09-04T074500.json"), true);
-  assert.equal(isDatedBackupName("session-fortress-latest.json"), false);
-  assert.match(datedBackupFilename(new Date("2026-09-04T12:34:56")), /session-fortress-2026-09-04T/);
+  assert.equal(exportFilename(new Date("2026-09-16T12:34:56")), "session-fortress-2026-09-16.json");
 
   const fortress = parseImportedJson(
     JSON.stringify({
@@ -133,96 +121,90 @@ export function run(): void {
   assert.equal(sanitizeSessionsForMirror(allIncognito, true).length, 1);
   assert.equal(sanitizeSessionsForMirror(allIncognito, true)[0]?.windows[0]?.incognito, true);
 
-  const hollow = [{ windows: [] }];
-  assert.equal(vaultHasRestoreableContent(hollow), false);
-  assert.equal(vaultHasRestoreableContent([]), false);
-  assert.equal(vaultHasRestoreableContent(mixed), true);
-  assert.equal(
-    shouldRefuseEmptyOverwrite({
-      allowEmpty: false,
-      incomingHasContent: vaultHasRestoreableContent(hollow),
-      existingHasContent: true,
+  const existing = [
+    sessionRecord({
+      id: "keep",
+      name: "Desk",
+      windows: [normalWin],
     }),
-    true,
-  );
-
-  let allowEmptyMirror = true;
-  const incomingHasContent = false;
-  const firstAllowEmpty = computeAllowEmptyWrite(allowEmptyMirror, incomingHasContent);
-  assert.equal(firstAllowEmpty, true);
-  assert.equal(
-    shouldRefuseEmptyOverwrite({
-      allowEmpty: firstAllowEmpty,
-      incomingHasContent,
-      existingHasContent: true,
+  ];
+  const incoming = [
+    sessionRecord({
+      id: "keep",
+      name: "Desk",
+      windows: [normalWin],
     }),
-    false,
-  );
+  ];
+  const imported = applyImport(existing, incoming);
+  assert.equal(imported.added, 1);
+  assert.equal(imported.renamed, 1);
+  assert.equal(imported.skipped, 0);
+  assert.equal(imported.sessions.length, 2);
+  assert.notEqual(imported.sessions[0]?.id, "keep");
+  assert.equal(imported.sessions[0]?.name, "Desk (imported)");
+  assert.equal(imported.sessions[1]?.id, "keep");
 
-  allowEmptyMirror = nextAllowEmptyMirrorAfterAttempt({
-    allowEmptyMirror,
-    incomingHasContent,
+  const names = new Set(["desk", "desk (imported)"]);
+  assert.equal(uniqueImportedName("Desk", names), "Desk (imported 2)");
+
+  const replicaRecovery = nextRecoveryState({
+    hotEmpty: true,
+    replicaRestored: true,
+    previous: DEFAULT_RECOVERY,
+    replicaRestoredCount: 3,
   });
-  assert.equal(allowEmptyMirror, false);
+  assert.equal(replicaRecovery.active, true);
+  assert.equal(replicaRecovery.reason, "replica-restored");
+  assert.equal(replicaRecovery.replicaRestoredCount, 3);
 
-  const retryAllowEmpty = computeAllowEmptyWrite(allowEmptyMirror, incomingHasContent);
-  assert.equal(retryAllowEmpty, false);
-  assert.equal(
-    shouldRefuseEmptyOverwrite({
-      allowEmpty: retryAllowEmpty,
-      incomingHasContent,
-      existingHasContent: true,
-    }),
-    true,
-  );
-
-  assert.equal(computeAllowEmptyWrite(true, false), true);
-  assert.equal(
-    shouldRefuseEmptyOverwrite({
-      allowEmpty: false,
-      incomingHasContent: false,
-      existingHasContent: true,
-    }),
-    true,
-  );
-  assert.equal(
-    shouldRefuseEmptyOverwrite({
-      allowEmpty: true,
-      incomingHasContent: false,
-      existingHasContent: true,
-    }),
-    false,
-  );
-  assert.equal(
-    shouldRefuseEmptyOverwrite({
-      allowEmpty: false,
-      incomingHasContent: false,
-      existingHasContent: false,
-    }),
-    false,
-  );
-
-  const emptyRecovery = nextRecoveryState({
+  const emptyNoReplica = nextRecoveryState({
     hotEmpty: true,
     replicaRestored: false,
-    folderKnown: true,
     previous: DEFAULT_RECOVERY,
     replicaRestoredCount: 0,
-    folderExportedAt: 1_700_000_000_000,
   });
-  assert.equal(emptyRecovery.active, true);
-  assert.equal(emptyRecovery.reason, "empty-or-corrupt");
+  assert.equal(emptyNoReplica.active, false);
 
   const healthyRecovery = nextRecoveryState({
     hotEmpty: false,
     replicaRestored: false,
-    folderKnown: true,
-    previous: emptyRecovery,
+    previous: replicaRecovery,
     replicaRestoredCount: 0,
-    folderExportedAt: 1_700_000_000_000,
   });
   assert.equal(healthyRecovery.active, false);
   assert.equal(healthyRecovery.reason, null);
+
+  const week = 8 * 24 * 60 * 60 * 1000;
+  assert.equal(
+    isExportReminderDue({
+      remind: true,
+      hasSessions: true,
+      lastExportAt: null,
+      lastSavedAt: Date.now() - week,
+      lastExportReminderAt: null,
+    }),
+    true,
+  );
+  assert.equal(
+    isExportReminderDue({
+      remind: true,
+      hasSessions: true,
+      lastExportAt: Date.now(),
+      lastSavedAt: Date.now() - week,
+      lastExportReminderAt: null,
+    }),
+    false,
+  );
+  assert.equal(
+    isExportReminderDue({
+      remind: false,
+      hasSessions: true,
+      lastExportAt: null,
+      lastSavedAt: Date.now() - week,
+      lastExportReminderAt: null,
+    }),
+    false,
+  );
 
   const origin = "chrome-extension://abcdef/";
   assert.equal(isProtectedUiUrl(`${origin}manager.html`, origin), true);
@@ -261,16 +243,20 @@ export function run(): void {
   assert.equal(windowStateAfterCreate("minimized"), null);
   assert.equal(windowStateAfterCreate("normal"), null);
 
-  const exportMixed = JSON.parse(
-    exportVaultJson(mixed, DEFAULT_META, false),
-  ) as { sessions: Session[] };
+  const exportMixed = JSON.parse(exportVaultJson(mixed, DEFAULT_META, false)) as {
+    app: string;
+    schemaVersion: number;
+    exportedAt: number;
+    sessions: Session[];
+  };
+  assert.equal(exportMixed.app, "session-fortress");
+  assert.equal(exportMixed.schemaVersion, 1);
+  assert.equal(typeof exportMixed.exportedAt, "number");
   assert.equal(exportMixed.sessions.length, 1);
   assert.equal(exportMixed.sessions[0]?.windows.every((w) => !w.incognito), true);
   const exportOne = JSON.parse(exportSessionJson(mixed[0], DEFAULT_META, false)) as { sessions: Session[] };
   assert.equal(exportOne.sessions[0]?.windows.some((w) => w.incognito), false);
-  const exportWithIncognito = JSON.parse(
-    exportVaultJson(mixed, DEFAULT_META, true),
-  ) as { sessions: Session[] };
+  const exportWithIncognito = JSON.parse(exportVaultJson(mixed, DEFAULT_META, true)) as { sessions: Session[] };
   assert.equal(exportWithIncognito.sessions[0]?.windows.some((w) => w.incognito), true);
 
   assert.equal(isKeepaliveAlarmName(KEEPALIVE_PERIODIC), true);
@@ -293,4 +279,7 @@ export function run(): void {
   const extraEnd = applyKeepaliveEnd(0);
   assert.equal(extraEnd.stop, false);
   assert.equal(extraEnd.depth, 0);
+
+  assert.equal(DEFAULT_SETTINGS.remindExportWeekly, true);
+  assert.equal(DEFAULT_SETTINGS.startupHealthCheck, true);
 }

@@ -18,7 +18,6 @@ export default defineConfig({
         popup: resolve(rootDir, "src/popup.html"),
         manager: resolve(rootDir, "src/manager.html"),
         options: resolve(rootDir, "src/options.html"),
-        offscreen: resolve(rootDir, "src/offscreen.html"),
       },
       output: {
         entryFileNames: "[name].js",

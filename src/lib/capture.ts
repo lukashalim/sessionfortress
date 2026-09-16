@@ -8,9 +8,9 @@ import {
 } from "./types";
 import { defaultSessionName, normalizeGroupColor, shouldCaptureUrl } from "./util";
 
-// Incognito windows are captured into the hot store. Folder mirror and JSON
-// export omit them unless Settings includes incognito. Save toasts therefore
-// only report savedTabs + skippedSystem — not a fake skippedIncognito count.
+// Incognito windows are captured into the hot store. JSON export omits them
+// unless Settings includes incognito. Save toasts therefore only report
+// savedTabs + skippedSystem — not a fake skippedIncognito count.
 
 const NONE = chrome.tabGroups.TAB_GROUP_ID_NONE;
 

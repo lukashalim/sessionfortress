@@ -1,17 +1,16 @@
-import { clearDirectoryHandle } from "./lib/idb";
-import { pickBackupFolder, requestFolderPermission } from "./lib/folder";
+import { downloadJsonFile } from "./lib/download";
 import { sendRequest } from "./lib/messages";
 import { SUPPORT_EMAIL, type Bootstrap } from "./lib/types";
-import { MARK_SVG, showToast, statusLabel } from "./lib/ui";
-import { clampRetention } from "./lib/util";
+import { importToast, MARK_SVG, showToast, statusLabel } from "./lib/ui";
 
 const brand = document.getElementById("brand") as HTMLElement;
 brand.innerHTML = `${MARK_SVG}<h1>Session Fortress settings</h1>`;
 
-const folderStatus = document.getElementById("folder-status") as HTMLElement;
-const retention = document.getElementById("retention") as HTMLInputElement;
+const exportStatus = document.getElementById("export-status") as HTMLElement;
 const health = document.getElementById("health") as HTMLInputElement;
 const incognito = document.getElementById("incognito") as HTMLInputElement;
+const remind = document.getElementById("remind") as HTMLInputElement;
+const importFile = document.getElementById("import-file") as HTMLInputElement;
 const support = document.getElementById("support") as HTMLElement;
 support.textContent = SUPPORT_EMAIL;
 
@@ -19,13 +18,12 @@ let bootstrap: Bootstrap | null = null;
 
 function paint(): void {
   if (!bootstrap) return;
-  const info = statusLabel(bootstrap.folderStatus, bootstrap);
-  folderStatus.className = `banner ${info.kind === "ok" ? "" : info.kind}`.trim();
-  const folder = bootstrap.meta.folderName ? `Folder: ${bootstrap.meta.folderName}. ` : "";
-  folderStatus.textContent = `${folder}${info.text}`;
-  retention.value = String(bootstrap.settings.retention);
+  const info = statusLabel(bootstrap);
+  exportStatus.className = `banner ${info.kind === "ok" ? "" : info.kind}`.trim();
+  exportStatus.textContent = `${info.text}. Sessions stay in this browser until you export JSON.`;
   health.checked = bootstrap.settings.startupHealthCheck;
   incognito.checked = bootstrap.settings.includeIncognitoInBackup;
+  remind.checked = bootstrap.settings.remindExportWeekly;
 }
 
 async function load(): Promise<void> {
@@ -36,43 +34,49 @@ async function load(): Promise<void> {
   }
 }
 
-async function chooseFolder(): Promise<void> {
+async function exportAll(): Promise<void> {
+  const response = await sendRequest({ type: "EXPORT_ALL" });
+  if (!response.ok || !("json" in response)) {
+    showToast(response.ok ? "Export failed." : response.error);
+    return;
+  }
   try {
-    const picked = await pickBackupFolder();
-    const response = await sendRequest({ type: "FOLDER_PICKED", folderName: picked.folderName });
-    if (response.ok && "bootstrap" in response) {
-      bootstrap = response.bootstrap;
+    await downloadJsonFile(response.filename, response.json);
+    const marked = await sendRequest({ type: "MARK_EXPORTED" });
+    if (marked.ok && "bootstrap" in marked) {
+      bootstrap = marked.bootstrap;
       paint();
     }
-    showToast(`Backup folder set to ${picked.folderName}.`);
+    showToast("Export saved.");
   } catch (error) {
-    if (error instanceof DOMException && error.name === "AbortError") return;
-    showToast(error instanceof Error ? error.message : "Folder picker failed.");
+    if (error instanceof Error && /canceled|cancelled/i.test(error.message)) return;
+    showToast(error instanceof Error ? error.message : "Export failed.");
   }
 }
 
-document.getElementById("pick-folder")?.addEventListener("click", () => void chooseFolder());
-document.getElementById("reallow")?.addEventListener("click", async () => {
-  const perm = await requestFolderPermission();
-  if (perm === "granted") {
-    const response = await sendRequest({ type: "WRITE_FOLDER_NOW" });
-    if (response.ok && "bootstrap" in response) {
-      bootstrap = response.bootstrap;
-      paint();
-    }
-    showToast("Folder access restored.");
+document.getElementById("export-all")?.addEventListener("click", () => void exportAll());
+document.getElementById("import")?.addEventListener("click", () => importFile.click());
+importFile.addEventListener("change", async () => {
+  const file = importFile.files?.[0];
+  importFile.value = "";
+  if (!file) return;
+  let json: string;
+  try {
+    json = await file.text();
+  } catch {
+    showToast("Could not read that file.");
     return;
   }
-  showToast("Folder access was not granted.");
-});
-document.getElementById("clear-folder")?.addEventListener("click", async () => {
-  if (!window.confirm("Stop writing to the backup folder? Existing files are left on disk.")) return;
-  await clearDirectoryHandle();
-  const response = await sendRequest({ type: "FOLDER_CLEARED" });
-  if (response.ok && "bootstrap" in response) {
+  const response = await sendRequest({ type: "IMPORT", json });
+  if (!response.ok) {
+    showToast(response.error);
+    return;
+  }
+  if ("bootstrap" in response) {
     bootstrap = response.bootstrap;
     paint();
   }
+  if ("import" in response) showToast(importToast(response.import));
 });
 document.getElementById("reset")?.addEventListener("click", async () => {
   const response = await sendRequest({ type: "RESET_SETTINGS" });
@@ -93,9 +97,9 @@ async function saveSettings(): Promise<void> {
   const response = await sendRequest({
     type: "SET_SETTINGS",
     settings: {
-      retention: clampRetention(Number(retention.value)),
       startupHealthCheck: health.checked,
       includeIncognitoInBackup: incognito.checked,
+      remindExportWeekly: remind.checked,
     },
   });
   if (response.ok && "bootstrap" in response) {
@@ -104,8 +108,8 @@ async function saveSettings(): Promise<void> {
   }
 }
 
-retention.addEventListener("change", () => void saveSettings());
 health.addEventListener("change", () => void saveSettings());
 incognito.addEventListener("change", () => void saveSettings());
+remind.addEventListener("change", () => void saveSettings());
 
 void load();
