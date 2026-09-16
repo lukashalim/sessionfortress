@@ -8,7 +8,7 @@
   <body>
     <div class="options">
       <div class="brand" id="brand"></div>
-      <p class="sub">Sessions are saved in this browser. Export JSON to survive a reset or a new computer.</p>
+      <p class="sub">Sessions are saved in this browser. Export JSON for recovery if you reset Chrome or switch computers.</p>
 
       <h2>Export</h2>
       <div id="export-status" class="banner"></div>
@@ -24,7 +24,7 @@
         </label>
         <label class="row">
           <input id="incognito" type="checkbox" />
-          <span>Include incognito URLs in JSON exports (off by default)</span>
+          <span>Include incognito URLs in exports (off by default)</span>
         </label>
       </div>
 
@@ -32,7 +32,7 @@
       <div class="field">
         <label class="row">
           <input id="health" type="checkbox" />
-          <span>Run a health check when Chrome starts (refill from the local replica if storage looks empty)</span>
+          <span>Run a health check when Chrome starts (restore from a recovery copy if your sessions are missing)</span>
         </label>
       </div>
 
@@ -67,7 +67,6 @@
         <button class="btn" id="reset" type="button">Restore defaults</button>
         <button class="btn" id="open-manager" type="button">Open manager</button>
       </div>
-      <p class="pro-note">Pro — later. No paywall in this version.</p>
     </div>
     <script type="module" src="./options.ts"></script>
   </body>

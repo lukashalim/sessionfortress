@@ -11,6 +11,7 @@ const reminderEl = document.getElementById("reminder") as HTMLElement;
 const listEl = document.getElementById("list") as HTMLElement;
 const searchEl = document.getElementById("search") as HTMLInputElement;
 const importFile = document.getElementById("import-file") as HTMLInputElement;
+const exportBtn = document.getElementById("export-all") as HTMLButtonElement;
 
 brand.innerHTML = `${MARK_SVG}<div><h1>Session Fortress</h1><div class="sub">Named sessions saved in this browser</div></div>`;
 
@@ -27,6 +28,11 @@ function paint(): void {
   paintRecovery();
   paintReminder();
   paintList();
+  if (bootstrap.exportReminderDue) {
+    exportBtn.classList.add("btn-gold");
+  } else {
+    exportBtn.classList.remove("btn-gold");
+  }
 }
 
 function paintRecovery(): void {
@@ -40,7 +46,7 @@ function paintRecovery(): void {
   recoveryEl.className = "banner warn";
   recoveryEl.innerHTML = `
     <div class="stack">
-      <div>Restored ${rec.replicaRestoredCount} session${rec.replicaRestoredCount === 1 ? "" : "s"} from the local replica. Export JSON if you want a copy that survives a profile reset.</div>
+      <div>Restored ${rec.replicaRestoredCount} session${rec.replicaRestoredCount === 1 ? "" : "s"} from a recovery copy in this browser. Export JSON to keep a backup outside Chrome.</div>
       <div class="row">
         <button class="btn btn-primary" id="recovery-export" type="button">Export JSON</button>
         <button class="btn btn-ghost" id="dismiss-recovery" type="button">Dismiss</button>
@@ -59,7 +65,7 @@ function paintReminder(): void {
   }
   reminderEl.className = "banner warn";
   reminderEl.classList.remove("hidden");
-  reminderEl.innerHTML = `<div class="spread"><span>It’s been a week since the last export. Save a JSON copy to survive a reset or a new computer.</span><div class="row"><button class="btn btn-primary" id="remind-export" type="button">Export JSON</button><button class="btn" id="remind-dismiss" type="button">Later</button></div></div>`;
+  reminderEl.innerHTML = `<div class="spread"><span>It's been a week since your last export. Export JSON to keep a backup if Chrome resets or you move to another computer.</span><div class="row"><button class="btn btn-primary btn-gold" id="remind-export" type="button">Export JSON</button><button class="btn" id="remind-dismiss" type="button">Later</button></div></div>`;
   document.getElementById("remind-export")?.addEventListener("click", () => void exportAll());
   document.getElementById("remind-dismiss")?.addEventListener("click", () => void dismissReminder());
 }
@@ -69,7 +75,7 @@ function paintList(): void {
   if (items.length === 0) {
     listEl.innerHTML =
       sessions().length === 0
-        ? `<div class="empty">No sessions yet. Save a window. Export JSON to survive a Chrome reset or a new computer.</div>`
+        ? `<div class="empty">No sessions yet. Save a window to get started. Export JSON to keep a backup outside Chrome.</div>`
         : `<div class="empty">No sessions match that search.</div>`;
     return;
   }
@@ -82,11 +88,12 @@ function paintList(): void {
         .slice(0, 12)
         .map((g) => `<span class="chip ${escapeHtml(g.color)}">${escapeHtml(g.title || "Untitled")}</span>`)
         .join("");
+      const importedBadge = session.source === "imported" ? '<span class="chip chip-imported">Imported</span>' : "";
       return `<article class="session" data-id="${escapeHtml(session.id)}">
         <div class="session-head">
           <div>
-            <div class="session-name">${escapeHtml(session.name)}</div>
-            <div class="meta-line">${escapeHtml(relativeTime(session.updatedAt))} · ${session.windows.length} window${session.windows.length === 1 ? "" : "s"} · ${tabs} tab${tabs === 1 ? "" : "s"} · ${groups} group${groups === 1 ? "" : "s"} · ${escapeHtml(session.source)}</div>
+            <div class="session-name">${escapeHtml(session.name)}${importedBadge ? " " + importedBadge : ""}</div>
+            <div class="meta-line">${escapeHtml(relativeTime(session.updatedAt))} · ${session.windows.length} window${session.windows.length === 1 ? "" : "s"} · ${tabs} tab${tabs === 1 ? "" : "s"} · ${groups} group${groups === 1 ? "" : "s"}</div>
             <div class="groups">${chips}</div>
           </div>
           <div class="actions">
@@ -96,9 +103,9 @@ function paintList(): void {
               <option value="add">Add to this window</option>
             </select>
             <button class="btn btn-primary" data-act="restore" type="button">Restore</button>
-            <button class="btn" data-act="rename" type="button">Rename</button>
-            <button class="btn" data-act="duplicate" type="button">Duplicate</button>
-            <button class="btn" data-act="export" type="button">Export</button>
+            <button class="btn btn-secondary" data-act="rename" type="button">Rename</button>
+            <button class="btn btn-secondary" data-act="duplicate" type="button">Duplicate</button>
+            <button class="btn btn-secondary" data-act="export" type="button">Export</button>
             <button class="btn btn-danger" data-act="delete" type="button">Delete</button>
           </div>
         </div>
@@ -130,7 +137,7 @@ async function exportAll(): Promise<void> {
     await downloadJsonFile(response.filename, response.json);
     const marked = await sendRequest({ type: "MARK_EXPORTED" });
     if (marked.ok && "bootstrap" in marked) await applyBootstrap(marked.bootstrap);
-    showToast("Export started.");
+    showToast("Export saved.");
   } catch (error) {
     if (error instanceof Error && /canceled|cancelled/i.test(error.message)) return;
     showToast(error instanceof Error ? error.message : "Export failed.");

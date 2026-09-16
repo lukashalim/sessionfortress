@@ -20,7 +20,7 @@ function paint(): void {
   if (!bootstrap) return;
   const info = statusLabel(bootstrap);
   exportStatus.className = `banner ${info.kind === "ok" ? "" : info.kind}`.trim();
-  exportStatus.textContent = `${info.text}. Sessions stay in this Chrome profile until you export JSON.`;
+  exportStatus.textContent = `${info.text}. Sessions stay in this browser until you export JSON.`;
   health.checked = bootstrap.settings.startupHealthCheck;
   incognito.checked = bootstrap.settings.includeIncognitoInBackup;
   remind.checked = bootstrap.settings.remindExportWeekly;
@@ -47,7 +47,7 @@ async function exportAll(): Promise<void> {
       bootstrap = marked.bootstrap;
       paint();
     }
-    showToast("Export started.");
+    showToast("Export saved.");
   } catch (error) {
     if (error instanceof Error && /canceled|cancelled/i.test(error.message)) return;
     showToast(error instanceof Error ? error.message : "Export failed.");

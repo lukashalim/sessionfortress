@@ -1,6 +1,6 @@
 {
   "name": "session-fortress",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "description": "Save Chrome windows and Tab Groups in this browser. Export JSON to survive a reset or a new computer.",
   "type": "module",

@@ -3,13 +3,13 @@ import { relativeTime } from "./util";
 
 export function statusLabel(bootstrap: Bootstrap): { text: string; kind: "ok" | "warn" | "bad" } {
   if (bootstrap.recovery.active && !bootstrap.recovery.dismissed) {
-    return { text: "Local data recovered", kind: "warn" };
+    return { text: "Recovery copy restored", kind: "warn" };
   }
   if (bootstrap.exportReminderDue) return { text: "Export recommended", kind: "warn" };
   if (bootstrap.meta.lastExportAt) {
     return { text: `Exported ${relativeTime(bootstrap.meta.lastExportAt)}`, kind: "ok" };
   }
-  return { text: "Saved in this browser", kind: "ok" };
+  return { text: "In this browser · no export yet", kind: "ok" };
 }
 
 export function renderPill(el: HTMLElement, bootstrap: Bootstrap): void {

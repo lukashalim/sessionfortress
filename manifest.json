@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Session Fortress",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Save Chrome windows and Tab Groups in this browser. Export JSON to survive a reset or a new computer.",
   "minimum_chrome_version": "120",
   "action": {
